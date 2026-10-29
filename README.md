@@ -26,7 +26,7 @@ Turn a Samsung TV that sits dark most of the week into a calm family dashboard a
 
 ## Setup
 
-1. Download the latest zip from the [Releases](../../releases) page (or **Code → Download ZIP**) and unzip it.
+1. On this page, click the green **Code** button, then **Download ZIP**, and unzip it.
 2. Open **START-HERE.html** and follow the steps. In short: install Docker Desktop, switch on "Power On with Mobile" on the TV, then double-click **Setup.cmd** and answer a few questions.
 
 Everything you enter (city, calendar links, keys) stays in `C:\HomeTV` on your own laptop.

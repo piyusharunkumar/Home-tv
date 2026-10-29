@@ -247,7 +247,8 @@
     if (S.phone && S.phone.reminders && S.phone.reminders.length) list.push('reminders');
     if (S.weather && S.weather.hours) list.push('weather');
     if (activeFlight(now)) list.push('flight');
-    if (C.googleMapsKey && C.commute.origin && (S.route || !S.routeFailed)) list.push('commute');
+    // While the live 'on the way home' map is up, the fixed office → home commute would only contradict it.
+    if (C.googleMapsKey && C.commute.origin && (S.route || !S.routeFailed) && !(list.indexOf('papa') >= 0 && !routeDir().toWork)) list.push('commute');
     if (S.inbox && ((S.inbox.deliveries || []).length || (S.inbox.bills || []).some(function (b) { return !b.paid; }))) list.push('orders');
     if (S.kids && S.kids.length && h >= 6 && h < 21) list.push('kids');
     if (S.cricket && (S.cricket.live || S.cricket.next)) list.push('cricket');
@@ -332,7 +333,7 @@
       '<div class="cm-info"><p class="cm-dir">' + esc(name) + ' → Home<span>Seen ' + U.time12(r.fixAt || r.at) + '</span></p>' +
       '<div class="cm-head"><p class="cm-time">' + head + '</p></div>' +
       '<p class="cm-via">' + (r.desc ? 'via ' + esc(r.desc) : '') + '</p>' +
-      '<div class="cm-rows">' + (mins != null ? row('Home by', U.time12(new Date(Date.now() + mins * 60000))) : '') +
+      '<div class="cm-rows">' + (mins != null ? row('Home by', U.time12(new Date(Math.max(Date.now(), (r.fixAt || r.at || new Date()).getTime() + mins * 60000)))) : '') +
         (r.km != null ? row('Distance', r.km + ' km') : '') + '</div></div></div>';
   }
 
@@ -519,7 +520,7 @@
   function routeDir() { var toWork = new Date().getHours() < 13; return { toWork: toWork, from: toWork ? C.commute.origin : C.commute.destination, to: toWork ? C.commute.destination : C.commute.origin }; }
   async function loadRoute(force) {
     var d = routeDir();
-    if (!force && S.route && S.route.toWork === d.toWork && Date.now() - S.route.at < 15 * 60000) return;
+    if (!force && S.route && S.route.toWork === d.toWork && Date.now() - S.route.at < 5 * 60000) return;
     if (loadRoute.busy) return;
     loadRoute.busy = true;
     try {
@@ -1081,7 +1082,7 @@
     reg('aqi', 30 * MIN, async function () { S.aqi = await Sources.airQuality(); });
     reg('fx', 3 * 60 * MIN, async function () { S.fx = await Sources.fx(); });
     reg('calendar', 10 * MIN, async function () { S.gEvents = await Sources.calendar(); S.events = Sources.mergeEvents(S.gEvents, S.phone && S.phone.events); });
-    reg('papa', 2 * MIN, async function () {
+    reg('papa', 1 * MIN, async function () {
       var was = !!S.papa;
       try { S.papa = await Sources.whereabouts(); } catch (e) { S.papa = null; }
       if (S.papa && !was && !view.idle) { view.card = 'papa'; drawCard(true); }

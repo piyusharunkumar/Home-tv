@@ -15,7 +15,7 @@ OUT = os.path.join(DATA, "location.json")
 APPLE_ID = os.environ.get("APPLE_ID", "")
 DAYS = {int(d) for d in os.environ.get("FINDMY_DAYS", "0,1,2,3,4").split(",")}   # Mon=0 … Sun=6
 START, END = os.environ.get("FINDMY_FROM", "16:00"), os.environ.get("FINDMY_UNTIL", "21:00")
-EVERY = int(os.environ.get("FINDMY_EVERY", "120"))
+EVERY = int(os.environ.get("FINDMY_EVERY", "60"))
 IDLE_EVERY = int(os.environ.get("FINDMY_IDLE_EVERY", "180"))        # outside the evening window: last-known location only
 PRESENCE = os.path.join(DATA, "presence.json")
 HOME_R = float(os.environ.get("HOME_RADIUS_M", "350"))

@@ -118,7 +118,7 @@ window.Sources = (function () {
       },
       body: JSON.stringify({
         origin: { address: origin }, destination: { address: destination },
-        travelMode: 'DRIVE', routingPreference: 'TRAFFIC_AWARE'
+        travelMode: 'DRIVE', routingPreference: 'TRAFFIC_AWARE_OPTIMAL'
       })
     });
     if (!r || !r.routes || !r.routes.length) return null;
@@ -165,7 +165,7 @@ window.Sources = (function () {
       },
       body: JSON.stringify({
         origin: wp(origin), destination: wp(destination),
-        travelMode: 'DRIVE', routingPreference: 'TRAFFIC_AWARE', computeAlternativeRoutes: !single,
+        travelMode: 'DRIVE', routingPreference: 'TRAFFIC_AWARE_OPTIMAL', computeAlternativeRoutes: !single,
         languageCode: 'en', regionCode: 'AE', units: 'METRIC',
         extraComputations: ['TRAFFIC_ON_POLYLINE']
       })
@@ -262,9 +262,9 @@ window.Sources = (function () {
     var base = (C.corsProxy || '').replace(/\/proxy\?url=$/, '');
     var loc = await U.json(base + '/location');
     if (!loc || !loc.active) { whereabouts.last = null; return null; }
-    // Only ask Google for a new route if the phone moved >250 m or 10 min passed (keeps within the free allowance).
+    // Only ask Google for a new route if the phone moved >250 m or 4 min passed (keeps within the free allowance).
     var L = whereabouts.last, moved = L ? metres(L.lat, L.lng, loc.lat, loc.lng) : 1e9;
-    var r = L && moved < 250 && Date.now() - L.t < 10 * 60000 ? L.r : await commuteDetail({ lat: loc.lat, lng: loc.lng }, C.commute.origin, true);
+    var r = L && moved < 250 && Date.now() - L.t < 4 * 60000 ? L.r : await commuteDetail({ lat: loc.lat, lng: loc.lng }, C.commute.origin, true);
     if (r) whereabouts.last = { lat: loc.lat, lng: loc.lng, t: L && r === L.r ? L.t : Date.now(), r: r };
     if (!r) return { lat: loc.lat, lng: loc.lng, at: new Date(loc.at * 1000) };
     r.lat = loc.lat; r.lng = loc.lng; r.at = new Date(loc.at * 1000); r.fixAt = loc.fixAt ? new Date(loc.fixAt * 1000) : r.at;

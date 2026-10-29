@@ -103,7 +103,32 @@ window.Sources = (function () {
     U.store.set('rates_hist', hist);
     var prevKey = days.filter(function (k) { return k < today; }).pop(), prev = prevKey ? hist[prevKey] : null;
     function ch(k, v) { return prev && prev[k] != null && v != null ? v - prev[k] : null; }
-    return { rate: aed, usd: usd, gold: gold, change: ch('aed', aed), usdChange: ch('usd', usd), goldChange: ch('gold', gold) };
+    var out = { rate: aed, usd: usd, gold: gold, change: ch('aed', aed), usdChange: ch('usd', usd), goldChange: ch('gold', gold) };
+    // Currencies: compare with the previous business day from the ECB series (Frankfurter), so the arrows
+    // work from the first day and survive app reinstalls. The base is converted through USD (fine for pegged AED/SAR).
+    try {
+      var from = U.dayKey(new Date(Date.now() - 10 * 86400000));
+      var ts = await U.json('https://api.frankfurter.dev/v1/' + from + '..?from=USD&to=' + quote);
+      var keys = Object.keys(ts.rates || {}).sort(), last = keys[keys.length - 1];
+      var prevDay = keys.filter(function (k) { return k < today; }).pop();
+      if (last === today && keys.length > 1) prevDay = keys[keys.length - 2];
+      var pu = prevDay && ts.rates[prevDay][quote];
+      if (pu && usd != null) {
+        out.usdChange = usd - pu;
+        if (d.rates.USD) out.change = aed - pu * d.rates.USD;
+      }
+    } catch (e) { console.warn('[fx history]', e.message); }
+    // Gold: today's move from the market's own daily change (COMEX gold futures), via the laptop relay.
+    if (gold != null) {
+      try {
+        var y = await U.json('https://query1.finance.yahoo.com/v8/finance/chart/GC=F?range=5d&interval=1d', null, true);
+        var meta = y && y.chart && y.chart.result && y.chart.result[0] && y.chart.result[0].meta;
+        var pct = meta && (meta.regularMarketChangePercent != null ? meta.regularMarketChangePercent :
+          (meta.regularMarketPrice && meta.chartPreviousClose ? (meta.regularMarketPrice / meta.chartPreviousClose - 1) * 100 : null));
+        if (pct != null) out.goldChange = gold * pct / 100;
+      } catch (e) { console.warn('[gold change]', e.message); }
+    }
+    return out;
   }
 
   // ---------------- Drive times (Google Routes API) ----------------
@@ -234,7 +259,9 @@ window.Sources = (function () {
         var st = isoDate(e.start), en = isoDate(e.end);
         if (!st) return;
         if (e.allDay) { st = new Date(st.getFullYear(), st.getMonth(), st.getDate()); en = new Date(st.getTime() + 86400000); }
-        events.push({ title: e.title || '(No title)', start: st, end: en && en > st ? en : new Date(st.getTime() + 3600000), allDay: !!e.allDay, calendar: e.calendar, phone: true });
+        // Someone else's phone (e.g. a partner's): show their name in front, so it's clear whose event it is.
+        var me = (C.greetings && C.greetings.morningName) || '', tag = p.who && p.who !== 'phone' && p.who !== me ? p.who + ' · ' : '';
+        events.push({ title: tag + (e.title || '(No title)'), start: st, end: en && en > st ? en : new Date(st.getTime() + 3600000), allDay: !!e.allDay, calendar: e.calendar, phone: true, who: p.who });
       });
       (p.reminders || []).forEach(function (r) { reminders.push({ title: r.title, due: isoDate(r.due), list: r.list, who: p.who }); });
     });

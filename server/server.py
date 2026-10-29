@@ -12,13 +12,19 @@ ALLOWED_HOSTS = {h.strip().lower() for h in os.environ.get(
     "ALLOWED_HOSTS",
     "calendar.google.com,news.google.com,docs.google.com,"
     "sheets.googleusercontent.com,doc-0s-sheets.googleusercontent.com,"
-    "outlook.office365.com,outlook.office.com,outlook.live.com"
+    "outlook.office365.com,outlook.office.com,outlook.live.com,query1.finance.yahoo.com"
 ).split(",") if h.strip()}
 ALLOWED_SUFFIXES = (".googleusercontent.com",)
 CACHE_SECONDS = int(os.environ.get("CACHE_SECONDS", "300"))
 MAX_BYTES = 5 * 1024 * 1024
 _cache, _lock = {}, threading.Lock()
 STARTED = time.time()
+CMD = {}
+REMIND = {}            # last meeting reminder handed to the TV
+REMIND_DONE = set()    # meetings already announced
+TEST_REMIND = {}
+REMIND_WHO = os.environ.get("REMIND_WHO", "")          # whose phone calendar triggers reminders
+REMIND_MIN = int(os.environ.get("REMIND_MINUTES", "5"))
 POWER_ON = {"t": 0}   # set by the TV watcher each time the TV switches on
 
 # ---- Text-to-speech (/tts?text=...&voice=...) -> MP3, via Microsoft Edge neural voices ----
@@ -105,6 +111,32 @@ def parse_push(body):
     return who, {"who": who, "at": int(time.time()), "events": events[:200], "reminders": reminders[:100]}
 
 
+def due_meeting():
+    """The next timed meeting on REMIND_WHO's phone calendar starting within REMIND_MIN minutes, once each."""
+    from datetime import datetime
+    if not REMIND_WHO:
+        return None
+    try:
+        with open(os.path.join(PUSH_DIR, "push-%s.json" % REMIND_WHO), encoding="utf-8") as fh:
+            data = json.load(fh)
+    except Exception:  # noqa: BLE001
+        return None
+    now = time.time()
+    for e in data.get("events", []):
+        if e.get("allDay"):
+            continue
+        try:
+            st = datetime.fromisoformat(str(e.get("start", "")).replace("Z", "+00:00")).timestamp()
+        except ValueError:
+            continue
+        key = "%s|%s" % (int(st), e.get("title", ""))
+        if key in REMIND_DONE:
+            continue
+        if -60 <= st - now <= REMIND_MIN * 60:
+            return {"key": key, "title": e.get("title", "Meeting"), "start": int(st), "who": REMIND_WHO}
+    return None
+
+
 def read_pushed():
     out = []
     if os.path.isdir(PUSH_DIR):
@@ -166,6 +198,23 @@ class Handler(BaseHTTPRequestHandler):
             POWER_ON["t"] = int(time.time())
             POWER_ON["part"] = urllib.parse.parse_qs(parts.query).get("part", [""])[0][:12]  # demo: morning/afternoon/evening
             return self._send(200, b"ok")
+        if parts.path == "/cmd":                       # e.g. /cmd?do=gallery  (gallery | home | music), LAN only
+            CMD["do"] = urllib.parse.parse_qs(parts.query).get("do", [""])[0][:12]
+            CMD["t"] = int(time.time())
+            return self._send(200, b'{"ok": true}', "application/json")
+        if parts.path == "/remind/test":               # demo: the next claim returns a pretend meeting in 5 minutes
+            TEST_REMIND["at"] = int(time.time())
+            return self._send(200, b'{"ok": true}', "application/json")
+        if parts.path == "/remind/claim":              # asked every 10 s by the TV watcher while the TV is on
+            due = due_meeting()
+            if not due and TEST_REMIND.get("at"):
+                TEST_REMIND.clear()
+                due = {"key": "test%d" % time.time(), "title": "Test meeting", "start": int(time.time()) + REMIND_MIN * 60, "who": REMIND_WHO}
+            if due:
+                REMIND.clear(); REMIND.update(due); REMIND["t"] = int(time.time())
+                REMIND_DONE.add(due["key"])
+                return self._send(200, json.dumps({"due": True, "title": due["title"]}).encode(), "application/json")
+            return self._send(200, b'{"due": false}', "application/json")
         if parts.path == "/state":
             arrive = 0
             try:
@@ -173,7 +222,7 @@ class Handler(BaseHTTPRequestHandler):
                     arrive = json.load(fh).get("arriveAt", 0)
             except Exception:  # noqa: BLE001
                 pass
-            return self._send(200, json.dumps({"powerOn": POWER_ON["t"], "part": POWER_ON.get("part", ""), "arriveAt": arrive}).encode(), "application/json")
+            return self._send(200, json.dumps({"powerOn": POWER_ON["t"], "part": POWER_ON.get("part", ""), "arriveAt": arrive, "cmd": CMD if CMD.get("t") else None, "remind": REMIND if REMIND.get("t") and time.time() - REMIND["t"] < 600 else None}).encode(), "application/json")
         if parts.path == "/inbox":
             try:
                 with open(os.path.join(PUSH_DIR, "inbox.json"), encoding="utf-8") as fh:

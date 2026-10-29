@@ -24,6 +24,15 @@ while true; do
       fi
       sdb disconnect "$TV" >/dev/null 2>&1; sdb kill-server >/dev/null 2>&1
       state=on
+    else
+      # Already on: if a meeting is about to start, bring the dashboard to the front (over Netflix etc.).
+      due=$(timeout 4 bash -c "exec 3<>/dev/tcp/host.docker.internal/8080 && printf 'GET /remind/claim HTTP/1.0\r\nHost: relay\r\n\r\n' >&3 && cat <&3" 2>/dev/null)
+      if echo "$due" | grep -q '"due": true'; then
+        echo "$(date '+%F %T') meeting reminder - bringing the dashboard forward"
+        sdb connect "$TV" >/dev/null 2>&1
+        tizen run -s "$TV:26101" -p "$APP" >/dev/null 2>&1 && echo "  shown" || echo "  launch failed"
+        sdb disconnect "$TV" >/dev/null 2>&1; sdb kill-server >/dev/null 2>&1
+      fi
     fi
   else
     if [ "$state" = on ]; then echo "$(date '+%F %T') TV is off"; fi

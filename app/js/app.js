@@ -253,6 +253,7 @@
     if (S.kids && S.kids.length && h >= 6 && h < 21) list.push('kids');
     if (S.cricket && (S.cricket.live || S.cricket.next)) list.push('cricket');
     if (S.music && S.music.title && S.music.playing) list.push('music');
+    if (S.memory) list.push('memories');
     if (S.news && S.news.length) list.push('news');            // headlines always last
     // Most relevant first: score each screen for "right now"; headlines stay last.
     var sc = {};
@@ -267,6 +268,7 @@
     var h = now.getHours() + now.getMinutes() / 60, work = isWorkday(now), today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     switch (card) {
       case 'papa': return 100;                                         // someone's on the way home
+      case 'memories': return S.memory && S.memory.kicker === 'On this day' ? 58 : 34;
       case 'flight': return 97;
       case 'orders': {
         var ib = S.inbox || {}, out = (ib.deliveries || []).some(function (x) { return x.status === 'out'; });
@@ -323,6 +325,14 @@
     return '<div class="rms">' + rows + '</div>' + (list.length > 7 ? '<p class="rm-more">+' + (list.length - 7) + ' more on your phone</p>' : '');
   }
 
+  function cardMemories() {
+    var m = S.memory;
+    if (!m) return '<p class="empty">Picking a photo…</p>';
+    return '<div class="mem-card"><div class="mem-wrap"><img class="mem-img" src="' + esc(m.src) + '" alt=""></div>' +
+      '<div class="mem-info"><p class="mem-kick">' + esc(m.kicker) + '</p><p class="mem-cap">' + esc(m.caption) + '</p>' +
+      '<p class="mem-note">From our family photos</p></div></div>';
+  }
+
   function cardPapa() {
     var r = S.papa, name = (C.greetings && C.greetings.morningName) || 'Papa';
     if (!r) return '<p class="empty">Locating…</p>';
@@ -368,7 +378,7 @@
     return '<div class="ods"><div><p class="subhead" style="margin:0 0 6px">Deliveries</p>' + dl + '</div><div><p class="subhead" style="margin:0 0 6px">Bills</p>' + bl + '</div></div>';
   }
 
-  var TITLES = { weather: 'Weather · ' + C.location.name, calendar: 'Today', music: 'Now playing', cricket: 'Live · Cricket', kids: "Kids' board", news: 'Headlines', flight: 'Arriving flight', commute: 'Commute', reminders: 'Reminders', papa: 'On the way home', orders: 'Deliveries & bills' };
+  var TITLES = { weather: 'Weather · ' + C.location.name, calendar: 'Today', music: 'Now playing', cricket: 'Live · Cricket', kids: "Kids' board", news: 'Headlines', flight: 'Arriving flight', commute: 'Commute', reminders: 'Reminders', papa: 'On the way home', orders: 'Deliveries & bills', memories: 'Memories' };
 
   function cardCalendar() {
     if (!C.calendars.length && !DEMO) {
@@ -549,7 +559,7 @@
       '</div></div>';
   }
 
-  var CARD_FN = { orders: cardOrders, papa: cardPapa, reminders: cardReminders, commute: cardCommute, weather: cardWeather, calendar: cardCalendar, music: cardMusic, cricket: cardCricket, kids: cardKids, news: cardNews, flight: cardFlight };
+  var CARD_FN = { memories: cardMemories, orders: cardOrders, papa: cardPapa, reminders: cardReminders, commute: cardCommute, weather: cardWeather, calendar: cardCalendar, music: cardMusic, cricket: cardCricket, kids: cardKids, news: cardNews, flight: cardFlight };
 
   function drawCard(animate) {
     var list = eligibleCards();
@@ -591,9 +601,11 @@
 
   var APP_DOT = { 'netflix': '#E50914', 'youtube': '#FF0033', 'youtube kids': '#FF4E45', 'prime video': '#1A98FF', 'disney+': '#2F5BFF',
     'spotify': '#1DB954', 'apple tv': '#A1A1A6', 'shahid': '#2EC4B6', 'osn+': '#E4A11B', 'jiohotstar': '#1F80E0' };
+  // The apps row, plus a last "Gallery" tile (Samsung's smart remote has no colour buttons).
+  function appTiles() { return C.apps.concat([{ label: 'Gallery', gallery: true, color: '#F2B36B' }]); }
   function drawApps() {
     // Calm, identical tiles: name + a small brand-colour dot (no mismatched logo images).
-    $('apps').innerHTML = C.apps.map(function (a, i) {
+    $('apps').innerHTML = appTiles().map(function (a, i) {
       var dot = a.color || APP_DOT[String(a.label).toLowerCase()] || '#F2B36B';
       return '<div class="app app-c" data-i="' + i + '"><b class="app-dot" style="background:' + esc(dot) + '"></b><span>' + esc(a.label) + '</span></div>';
     }).join('');
@@ -615,6 +627,7 @@
   }
 
   function launchApp(a) {
+    if (a && a.gallery) { view.manualGallery = true; enterIdle(); return; }
     if (!a.appId) { toast('No app ID set for ' + a.label + ' — press the BLUE button to find it.'); return; }
     if (!ON_TV) { toast('Would open ' + a.label + ' (' + a.appId + ') on the TV'); return; }
     try {
@@ -669,7 +682,7 @@
     $('iArtist').textContent = a.artist;
     $('iMeta').textContent = [a.date, a.medium].filter(Boolean).join(' · ');
     $('iNote').textContent = a.note || '';
-    $('iMuseum').textContent = a.film ? a.museum : a.museum + ' · Open Access';
+    $('iMuseum').textContent = (a.film || a.family) ? a.museum : a.museum + ' · Open Access';
   }
 
   async function loadHomeArt() {
@@ -679,7 +692,18 @@
   }
 
   async function loadIdleArt() {
-    var art = await Sources.pickArt('any');
+    var art = null;
+    // Every few pictures, a family photo instead of a painting.
+    if (C.photoFrame !== false) {
+      loadIdleArt.n = (loadIdleArt.n || 0) + 1;
+      if (loadIdleArt.n % (C.photoEvery || 4) === 0) {
+        try {
+          var p = await nextPhoto();
+          if (p) art = { src: p.src, ratio: p.ratio, title: p.kicker, artist: p.caption, date: '', medium: '', note: '', museum: 'From our family photos', theme: 'Family', family: true };
+        } catch (e) { console.warn('[gallery photo]', e.message); }
+      }
+    }
+    if (!art) art = await Sources.pickArt('any');
     if (art) {
       var frame = $('iFrame');
       if (view.idle) { frame.style.opacity = 0; await new Promise(function (r) { setTimeout(r, 1200); }); }
@@ -704,6 +728,24 @@
     $('idle').classList.add('hidden');
     $('home').classList.remove('hidden');
     drawAll();
+  }
+
+  // ---------- Meeting reminder (the laptop brings the app to the front over Netflix etc.) ----------
+  function closeOverlay() { var ov = $('overlay'); ov.classList.add('hidden'); ov.classList.remove('remind'); ov.dataset.kind = ''; clearTimeout(closeOverlay.t); }
+  function showMeetingReminder(r) {
+    var st = new Date((r.start || 0) * 1000), mins = Math.max(0, Math.round((st - Date.now()) / 60000));
+    var who = r.who || '', when = mins <= 0 ? 'starting now' : 'in ' + mins + ' minute' + (mins === 1 ? '' : 's');
+    var ov = $('overlay');
+    ov.dataset.kind = 'remind';
+    ov.classList.add('remind');
+    ov.innerHTML = '<p class="rmd-k">' + esc(who ? who + "'s meeting" : 'Meeting') + ' · ' + esc(when) + '</p>' +
+      '<p class="rmd-t">' + esc(r.title || 'Meeting') + '</p>' +
+      '<p class="rmd-w">' + esc(U.time12(st)) + '</p>' +
+      '<p class="rmd-h">Press BACK to return to what you were watching</p>';
+    ov.classList.remove('hidden');
+    speak((who ? who + ', your ' : 'Your ') + 'meeting ' + (r.title || '') + ' starts ' + when + '.');
+    clearTimeout(closeOverlay.t);
+    closeOverlay.t = setTimeout(closeOverlay, 3 * 60000);
   }
 
   // ---------- Overlay: installed app IDs ----------
@@ -930,7 +972,19 @@
     var g = C.greetings;
     if (!g || !g.enabled || G.active || document.hidden) return;
     var on = null, part = '', arrive = 0;
-    try { var st = await U.json(RELAY + '/state'); on = st.powerOn || 0; part = st.part || ''; arrive = st.arriveAt || 0; } catch (e) { on = null; }
+    try {
+      var st = await U.json(RELAY + '/state'); on = st.powerOn || 0; part = st.part || ''; arrive = st.arriveAt || 0;
+      if (st.cmd && st.cmd.t > U.store.get('cmd_last', 0)) {          // a command sent from the laptop
+        U.store.set('cmd_last', st.cmd.t);
+        if (st.cmd.do === 'gallery') { view.manualGallery = true; enterIdle(); }
+        else if (st.cmd.do === 'home') exitIdle();
+        else if (st.cmd.do === 'music') playCalm();
+      }
+      if (st.remind && st.remind.t > U.store.get('remind_last', 0)) {   // a meeting is about to start
+        U.store.set('remind_last', st.remind.t);
+        showMeetingReminder(st.remind);
+      }
+    } catch (e) { on = null; }
     var nowS = Date.now() / 1000, freshArrive = arrive && nowS - arrive < 10 * 60 && arrive > U.store.get('arrive_last', 0);
     if (on === null) {                       // relay unreachable: greet once when the app starts
       if (greetBoot) { greetBoot = false; greetNow(); }
@@ -979,7 +1033,13 @@
     }
     var ov = $('overlay');
     if (!ov.classList.contains('hidden')) {
-      if (code === KEY.BACK || code === KEY.ESC || code === KEY.ENTER) { ov.classList.add('hidden'); e.preventDefault(); }
+      if (code === KEY.BACK || code === KEY.ESC || code === KEY.ENTER) {
+        e.preventDefault();
+        var wasRemind = ov.dataset.kind === 'remind';
+        closeOverlay();
+        // BACK after a meeting reminder: hand the screen back to whatever was playing (Netflix etc.).
+        if (wasRemind && code !== KEY.ENTER && ON_TV) { try { tizen.application.getCurrentApplication().hide(); } catch (err) { /* stay here */ } }
+      }
       return;
     }
     var media = MEDIA[code];
@@ -1014,7 +1074,7 @@
         break;
       case KEY.ENTER:
         if (view.focusRow === 'panel') { rotateCard(1, true); break; }
-        if (view.focusRow === 'apps') launchApp(C.apps[view.focusIdx]);
+        if (view.focusRow === 'apps') launchApp(appTiles()[view.focusIdx]);
         else { var el = list[view.focusIdx]; if (el) musicAction(el.dataset.ctl); }
         break;
       case KEY.BACK:
@@ -1029,17 +1089,21 @@
   // ---------- Family photo frame (photos come from the laptop's backup, LAN only) ----------
   var PHOTOS = (C.corsProxy || '').replace(/:8080\/proxy\?url=$/, ':8081');
   var pf = { front: 'pfA' };
+  // One family photo at a time: shown as the "Memories" screen and mixed into the gallery.
+  function nextPhoto() {
+    return U.json(PHOTOS + '/next').then(function (r) {
+      if (!r || !r.url) return null;
+      return U.loadImage(PHOTOS + r.url).then(function (img) {
+        return { src: PHOTOS + r.url, kicker: r.kicker || 'From our photos', caption: r.caption || '', ratio: img.naturalWidth / img.naturalHeight };
+      });
+    });
+  }
   async function loadFramePhoto() {
     if (view.idle || document.hidden || C.photoFrame === false) return;
-    var r = await U.json(PHOTOS + '/next');
-    if (!r || !r.url) return;
-    var back = pf.front === 'pfA' ? 'pfB' : 'pfA', img = $(back);
-    img.onload = function () {
-      $(back).classList.add('on'); $(pf.front).classList.remove('on'); pf.front = back;
-      $('pfKick').textContent = r.kicker || ''; $('pfCap').textContent = r.caption || '';
-      $('pframe').classList.remove('hidden');
-    };
-    img.src = PHOTOS + r.url;
+    var p = await nextPhoto();
+    if (!p) return;
+    S.memory = p;
+    if (view.card === 'memories' && !view.idle) drawCard(false);
   }
 
   // ---------- Loaders ----------
@@ -1070,7 +1134,7 @@
     var MIN = 60000;
     reg('art-home', C.homeArtMinutes * MIN, loadHomeArt);
     reg('art-idle', C.idleArtMinutes * MIN, function () { return view.idle ? loadIdleArt() : null; });
-    reg('photo', 70 * 1000, loadFramePhoto);
+    reg('photo', 4 * MIN, loadFramePhoto);
 
     if (DEMO) {
       var d = Sources.demo();

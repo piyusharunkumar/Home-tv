@@ -50,8 +50,10 @@ window.CONFIG = {
   tmdbKey: "",
   posterEvery: 5,             // one poster for every N gallery pictures
 
-  // ---------- Family photo frame (optional, needs extras/photo-frame) ----------
+  // ---------- Family photos (optional, needs extras/photo-frame) ----------
+  // A "Memories" screen in the rotation, and one family photo every N gallery pictures.
   photoFrame: false,
+  photoEvery: 4,
 
   // ---------- Calendars (optional) ----------
   // Google Calendar → Settings → your calendar → "Secret address in iCal format". One link per line.

@@ -338,3 +338,19 @@ body { text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55); }
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); font-size: 24px; font-weight: 600; color: var(--ink); }
 .app-dot { flex: 0 0 auto; width: 14px; height: 14px; border-radius: 50%; }
 .app.app-c.focus { background: var(--ink); color: #0F1217; }
+
+/* Memories (family photo) screen */
+.mem-card { display: flex; gap: 56px; height: 100%; align-items: stretch; }
+.mem-wrap { flex: 0 0 auto; width: 560px; border-radius: 22px; overflow: hidden; background: #1c1f26; box-shadow: 0 0 0 1px var(--line); }
+.mem-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.mem-info { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; padding-right: 8px; }
+.mem-kick { margin: 0 0 14px; font-size: 19px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.mem-cap { margin: 0; font-family: 'Cormorant Garamond', Georgia, serif; font-size: 52px; font-weight: 500; line-height: 1.1; color: #F3EEE6; }
+.mem-note { margin: 18px 0 0; font-size: 20px; color: var(--muted); }
+
+/* Meeting reminder */
+.overlay.remind { top: 200px; bottom: auto; left: 300px; right: 300px; padding: 56px 64px; text-align: center; }
+.rmd-k { margin: 0 0 18px; font-size: 22px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.rmd-t { margin: 0; font-family: 'Cormorant Garamond', Georgia, serif; font-size: 64px; font-weight: 500; line-height: 1.1; color: #F3EEE6; }
+.rmd-w { margin: 16px 0 0; font-size: 34px; font-weight: 600; color: #D6D9DE; }
+.rmd-h { margin: 34px 0 0; font-size: 20px; color: var(--muted); }

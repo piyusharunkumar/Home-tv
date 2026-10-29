@@ -13,7 +13,7 @@ from pillow_heif import register_heif_opener
 register_heif_opener()
 ROOT = os.environ.get("PHOTO_ROOT", "/photos")
 CACHE = os.environ.get("CACHE_DIR", "/data/photo-cache")
-W, H = 960, 640
+W, H = 1440, 960
 EXT = (".jpg", ".jpeg", ".heic", ".heif")
 os.makedirs(CACHE, exist_ok=True)
 _index, _lock, _recent = [], threading.Lock(), []
@@ -66,10 +66,18 @@ def good(img):
         return False
     small = img.convert("RGB").resize((256, int(256 * img.size[1] / img.size[0]) or 1))
     g = small.convert("L")
-    if ImageStat.Stat(g.filter(ImageFilter.FIND_EDGES)).stddev[0] < 9:     # very soft / blurry
+    if ImageStat.Stat(g.filter(ImageFilter.FIND_EDGES)).stddev[0] < 14:    # soft / blurry
+        return False
+    lum = ImageStat.Stat(g)
+    if lum.mean[0] < 75 or lum.stddev[0] < 35:            # dark (night, concert, indoor low light) or flat/hazy
         return False
     hsv = small.convert("HSV")
     sat = ImageStat.Stat(hsv.getchannel("S")).mean[0]
+    if sat > 150:                                         # stage lights / heavy colour cast
+        return False
+    hue = hsv.getchannel("H").histogram()
+    if max(hue) / float(sum(hue) or 1) > 0.45 and sat > 90:   # one strong colour floods the frame
+        return False
     bright = sum(1 for v in g.getdata() if v > 225) / (g.size[0] * g.size[1])
     if bright > 0.45 and sat < 30:                     # mostly white, colourless -> paper/receipt/whiteboard
         return False
@@ -113,7 +121,7 @@ def pick():
                 t = taken(img) or (datetime(y, mth, 15) if y else None)
                 if kind == "otd" and (not t or abs((t.replace(year=now.year) - now).days) > 3):
                     continue
-                name = hashlib.md5(path.encode()).hexdigest()[:8] + ".jpg"
+                name = hashlib.md5((path + "@%dx%d" % (W, H)).encode()).hexdigest()[:8] + ".jpg"
                 out = os.path.join(CACHE, name)
                 if not os.path.exists(out):
                     render(path, out)

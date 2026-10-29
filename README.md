@@ -10,6 +10,7 @@ Turn a Samsung TV that sits dark most of the week into a calm family dashboard a
 - **Shows your day**: clock, weather, air quality, calendar, world clocks, exchange rates and the 22K gold price, headlines and a kids' board.
 - **Live commute** with a traffic map, when to leave and how today compares with a normal day (optional, free Google Maps key).
 - **Gallery mode** at night or when nobody's using it: paintings from public museum collections, with film posters mixed in if you add a free TMDB key.
+- **Your phone's calendar** (optional): an iPhone Shortcut sends each person's events to the TV, labelled with their name. It can also interrupt Netflix or YouTube with a reminder 5 minutes before someone's meeting.
 - **Looks after itself**: restarts anything that stops and keeps the laptop awake.
 
 | | |

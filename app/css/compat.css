@@ -45,3 +45,4 @@
 .no-flexgap .tile .s { margin-top: auto !important; }
 .no-flexgap .grid3 { margin-top: auto !important; }
 .no-flexgap .main { margin-top: auto !important; }
+.no-flexgap .mem-card > * + * { margin-left: 56px; }

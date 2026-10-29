@@ -14,6 +14,8 @@ services:
       CACHE_SECONDS: "300"
       PUSH_KEY: ${PUSH_KEY:-}
       PUSH_DIR: /data
+      # Optional: whose phone calendar (the Shortcut's "who") should interrupt the TV 5 minutes before a meeting
+      REMIND_WHO: ${REMIND_WHO:-}
     ports:
       - "8080:8080"
     volumes:

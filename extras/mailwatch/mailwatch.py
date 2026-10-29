@@ -265,7 +265,11 @@ def run_once():
 def login():
     print("Gmail account: %s" % USER)
     print("Create an app password at https://myaccount.google.com/apppasswords (name it 'Home TV').")
-    pw = getpass.getpass("Paste the 16-letter app password (typing hidden): ").replace(" ", "")
+    pw = ""
+    while len(pw) != 16:
+        pw = getpass.getpass("Type the 16-letter app password, then press Enter (typing hidden): ").replace(" ", "")
+        if len(pw) != 16:
+            print("  Got %d letters, expected 16. Please try again." % len(pw))
     os.makedirs(DATA, exist_ok=True)
     json.dump({"p": pw}, open(SECRET, "w"))
     os.chmod(SECRET, 0o600)

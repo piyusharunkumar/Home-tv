@@ -1,0 +1,26 @@
+name: hometv
+services:
+  tv-relay:
+    build:
+      context: .
+      dockerfile: Dockerfile.relay
+    image: hometv-relay:1
+    container_name: hometv-relay
+    restart: always
+    command: ["python", "-u", "/app/server.py"]
+    environment:
+      TZ: ${TZ_NAME:-UTC}
+      PORT: "8080"
+      CACHE_SECONDS: "300"
+      PUSH_KEY: ${PUSH_KEY:-}
+      PUSH_DIR: /data
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./server.py:/app/server.py:ro
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8080/health',timeout=5)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3

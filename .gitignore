@@ -1,0 +1,7 @@
+# Personal settings and data stay on your laptop
+app/js/config.js
+server/data/
+extras/.env
+settings.json
+*.wgt
+__pycache__/

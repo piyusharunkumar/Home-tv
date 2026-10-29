@@ -1,0 +1,43 @@
+# Optional extras. Fill in extras/.env first (copy .env.example), then from the server folder run:
+#   docker compose -f docker-compose.yml -f ../extras/docker-compose.extras.yml up -d --build
+# Run only the ones you want, e.g. add "findmy" or "photos" at the end of the command.
+services:
+  findmy:          # "On the way home" map + welcome home (iPhone via Find My)
+    build: { context: ../extras/findmy }
+    image: hometv-findmy:1
+    container_name: hometv-findmy
+    restart: always
+    command: ["python", "-u", "/app/findmy.py", "serve"]
+    env_file: ../extras/.env
+    environment:
+      TZ: ${TZ_NAME:-UTC}
+    volumes:
+      - ../extras/findmy/findmy.py:/app/findmy.py:ro
+      - ./data:/data
+
+  mailwatch:       # Deliveries & bills from Gmail (read-only, app password)
+    image: python:3.12-alpine
+    container_name: hometv-mailwatch
+    restart: always
+    command: ["python", "-u", "/app/mailwatch.py", "serve"]
+    env_file: ../extras/.env
+    environment:
+      TZ: ${TZ_NAME:-UTC}
+    volumes:
+      - ../extras/mailwatch/mailwatch.py:/app/mailwatch.py:ro
+      - ./data:/data
+
+  photos:          # Family photo frame on the home screen
+    build: { context: ../extras/photo-frame }
+    image: hometv-photos:1
+    container_name: hometv-photos
+    restart: always
+    command: ["python", "-u", "/app/photoframe.py"]
+    environment:
+      TZ: ${TZ_NAME:-UTC}
+    ports:
+      - "8081:8081"
+    volumes:
+      - ../extras/photo-frame/photoframe.py:/app/photoframe.py:ro
+      - ${PHOTO_FOLDER:-C:/Photos}:/photos:ro
+      - ./data:/data

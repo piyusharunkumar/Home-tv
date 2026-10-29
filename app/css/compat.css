@@ -1,0 +1,47 @@
+/* Old TV browsers (Chromium < 84) ignore "gap" in flex layouts; app.js adds .no-flexgap there. */
+.no-flexgap #home > .apps { margin-top: 24px; }
+.no-flexgap .hdr-left > * + * { margin-top: 6px; }
+.no-flexgap .hdr-right > * + * { margin-top: 16px; }
+.no-flexgap .wx > * + * { margin-left: 20px; }
+.no-flexgap .wx-text > * + * { margin-top: 2px; }
+.no-flexgap .prayers > * + * { margin-left: 16px; }
+.no-flexgap .main > * + * { margin-left: 32px; }
+.no-flexgap .card-wrap > * + * { margin-top: 18px; }
+.no-flexgap .dots > * + * { margin-left: 10px; }
+.no-flexgap .tile > * + * { margin-top: 6px; }
+.no-flexgap .apps > * + * { margin-left: 18px; }
+.no-flexgap .ev > * + * { margin-left: 32px; }
+.no-flexgap .grid2 > * + * { margin-left: 20px; }
+.no-flexgap .music > * + * { margin-left: 40px; }
+.no-flexgap .music-info > * + * { margin-top: 10px; }
+.no-flexgap .progress > * + * { margin-left: 16px; }
+.no-flexgap .controls > * + * { margin-left: 20px; }
+.no-flexgap .kids > * + * { margin-left: 24px; }
+.no-flexgap .kid > * + * { margin-top: 14px; }
+.no-flexgap .task > * + * { margin-left: 16px; }
+.no-flexgap .news > * + * { margin-left: 40px; }
+.no-flexgap .news-col > * + * { margin-top: 16px; }
+.no-flexgap .route > * + * { margin-left: 32px; }
+.no-flexgap .grid3 > * + * { margin-left: 20px; }
+.no-flexgap .idle > * + * { margin-top: 36px; }
+.no-flexgap .idle-mid > * + * { margin-left: 96px; }
+.no-flexgap .label > * + * { margin-top: 18px; }
+.no-flexgap .idle-chips > * + * { margin-left: 16px; }
+.no-flexgap .ichip > * + * { margin-left: 14px; }
+.no-flexgap .wx-card > * + * { margin-left: 36px; }
+.no-flexgap .wx-now > * + * { margin-top: 4px; }
+.no-flexgap .wx-right > * + * { margin-top: 24px; }
+.no-flexgap .wh > * + * { margin-top: 6px; }
+.no-flexgap .wd > * + * { margin-top: 6px; }
+.no-flexgap .g-btns > * + * { margin-left: 18px; }
+.no-flexgap .cm-card > * + * { margin-left: 56px; }
+.no-flexgap .cm-head > * + * { margin-left: 22px; }
+.no-flexgap .cm-row > * + * { margin-left: 20px; }
+.no-flexgap .rm > * + * { margin-left: 16px; }
+.no-flexgap #tileB .fx-row > * + * { margin-left: 10px; }
+.no-flexgap .od > * + * { margin-left: 14px; }
+.no-flexgap .app.app-c > * + * { margin-left: 14px; }
+.no-flexgap .pframe { margin: 0 !important; }
+.no-flexgap .tile .s { margin-top: auto !important; }
+.no-flexgap .grid3 { margin-top: auto !important; }
+.no-flexgap .main { margin-top: auto !important; }

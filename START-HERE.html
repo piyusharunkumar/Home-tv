@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Home TV Gallery – setup guide</title>
+<style>
+:root{--ink:#1d1f24;--muted:#5b616e;--line:#e6e2da;--bg:#faf8f4;--card:#fff;--accent:#b5652b;--ok:#2f7d5b}
+@media (prefers-color-scheme:dark){:root{--ink:#eceae6;--muted:#a7adb8;--line:#2b2f37;--bg:#14161a;--card:#1b1e24;--accent:#f2b36b;--ok:#8fd1b0}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 -apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:820px;margin:0 auto;padding:40px 20px 80px}h1{font:600 40px/1.15 Georgia,serif;margin:0 0 8px}
+h2{font:600 26px/1.25 Georgia,serif;margin:44px 0 12px;padding-top:12px;border-top:1px solid var(--line)}h3{margin:24px 0 6px;font-size:18px}
+.lead{color:var(--muted);font-size:19px;margin:0 0 24px}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin:16px 0}
+ol li,ul li{margin:6px 0}code,kbd{font:15px ui-monospace,Consolas,monospace;background:rgba(127,127,127,.12);padding:2px 6px;border-radius:6px}
+.step{display:flex;gap:14px;align-items:flex-start}.n{flex:0 0 34px;height:34px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;display:grid;place-items:center}
+.tip{border-left:4px solid var(--accent);padding:8px 14px;background:rgba(181,101,43,.08);border-radius:0 10px 10px 0}.ok{color:var(--ok);font-weight:600}
+table{border-collapse:collapse;width:100%}td{border-bottom:1px solid var(--line);padding:8px 6px;vertical-align:top}td:first-child{white-space:nowrap;font-weight:600}
+small{color:var(--muted)}
+</style></head><body><main>
+<h1>Home TV Gallery</h1>
+<p class="lead">Turn a Samsung TV into a living art gallery and a calm family dashboard, run by a spare Windows laptop. About 45 minutes, no coding.</p>
+
+<div class="card"><b>What you get</b>
+<ul>
+<li>🎨 <b>Gallery mode</b>: masterpieces from public museums' open-access collections, framed with a short note about each work. The art also sits softly behind the dashboard.</li>
+<li>☀️ The TV can <b>switch itself on</b> at times you choose, with a short spoken greeting, weather, your day's calendar and music (devotional music early in the morning if you like, instrumental jazz otherwise).</li>
+<li>🕒 Clock, weather, sunrise/sunset, world clocks, exchange rates and 22K gold price, headlines, a kids' chores board.</li>
+<li>🗺️ <i>Optional:</i> live commute map with traffic (needs a free Google Maps key).</li>
+<li>🎬 <i>Optional:</i> film posters mixed into the gallery (needs a free TMDB key; paste it as <code>tmdbKey</code> in <code>C:\HomeTV\app\js\config.js</code>).</li>
+<li>🧩 <i>Extras for the more adventurous:</i> “on the way home” map from Find My, deliveries &amp; bills from Gmail, and a family photo frame. See <code>extras/README.md</code>.</li>
+<li>🔧 Looks after itself: restarts anything that stops and keeps the laptop awake.</li>
+</ul></div>
+
+<h2>What you need</h2>
+<ul>
+<li>A <b>Samsung smart TV</b> from 2017 or later (Tizen; most Samsung TVs with the colourful home bar).</li>
+<li>A <b>Windows 10 or 11 laptop/PC</b> that can stay plugged in and switched on near your router, on the <b>same Wi-Fi</b> as the TV.</li>
+<li>About 10 GB of free disk space.</li>
+</ul>
+
+<h2>Setup</h2>
+<div class="step"><div class="n">1</div><div><h3>Install Docker Desktop on the laptop</h3>
+Download it free from <code>docker.com/products/docker-desktop</code> and install with the default options. Restart when asked, open <b>Docker Desktop</b> once, accept its terms and skip signing in. Wait until the bottom-left corner says <span class="ok">Engine running</span>.
+<p><small>Tip: Setup.cmd can also install it for you – it will tell you to restart and run it again.</small></p></div></div>
+
+<div class="step"><div class="n">2</div><div><h3>Prepare the TV (2 minutes)</h3>
+<ol>
+<li>Switch the TV on.</li>
+<li><b>Settings → General → Network → Expert Settings → Power On with Mobile → On</b> <small>(on some models: Settings → Connection → Expert Settings)</small>. This lets the laptop switch the TV on.</li>
+<li>Leave Developer Mode for now – the setup wizard will tell you exactly when and what to type.</li>
+</ol></div></div>
+
+<div class="step"><div class="n">3</div><div><h3>Run the setup wizard</h3>
+Unzip this folder anywhere, then double-click <b>Setup.cmd</b> and click <b>Yes</b> when Windows asks for permission. The wizard:
+<ul><li>finds your TV on the Wi-Fi,</li><li>asks a few simple questions (your name, city, weekend days, currencies, switch-on times, optional calendar links),</li><li>sets the laptop to stay awake, installs everything, and puts the app on your TV.</li></ul>
+<div class="tip"><b>Developer Mode (the wizard will pause for this):</b> on the TV open <b>Apps</b>, then type <b>1 2 3 4 5</b> on the remote (no number keys? press the <b>123</b> button to bring up the on-screen numbers). Switch <b>Developer mode ON</b>, enter the <b>Host PC IP</b> the wizard shows you, press OK and restart the TV (hold the power button until the Samsung logo appears).</div></div></div>
+
+<div class="step"><div class="n">4</div><div><h3>Let the laptop sign in by itself (recommended)</h3>
+After a Windows update restart, nothing runs until someone signs in. To avoid that, download <b>Autologon</b> from Microsoft (<code>learn.microsoft.com/sysinternals/downloads/autologon</code>), run it, type your Windows password <i>yourself</i> and press <b>Enable</b>.
+<p><small>Only do this on a laptop that stays at home – anyone who opens it will be signed in.</small></p></div></div>
+
+<p class="ok">That's it. Switch the TV off and on – within about 15 seconds the dashboard opens and greets you.</p>
+
+<h2>Using it</h2>
+<table>
+<tr><td>◀ ▶</td><td>Flip between screens (Today, Weather, Commute, Kids, Headlines…)</td></tr>
+<tr><td>GREEN</td><td>Gallery mode now (it also starts by itself after 5 minutes without a button press)</td></tr>
+<tr><td>Play/Pause or RED</td><td>Stop the music</td></tr>
+<tr><td>BLUE</td><td>List the app IDs on your TV (for customising the app row)</td></tr>
+<tr><td>BACK</td><td>Close the greeting / any pop-up</td></tr>
+</table>
+
+<h2>Optional extras</h2>
+<h3>Google Calendar</h3>
+On a computer open Google Calendar → ⚙ Settings → click your calendar → scroll to <b>Secret address in iCal format</b> → copy. Run Setup.cmd again (option 1) and paste it when asked. Repeat for each calendar. <small>Keep these links private.</small>
+<h3>Live commute map</h3>
+<ol>
+<li>Go to <code>console.cloud.google.com</code>, create a project and turn on billing (a card is required, but normal home use stays well inside Google's free monthly allowance – add a $1 budget alert to be safe).</li>
+<li>Enable <b>Routes API</b> and <b>Maps Static API</b>.</li>
+<li>APIs &amp; Services → Credentials → Create credentials → API key. Restrict it to those two APIs.</li>
+<li>Run Setup.cmd (option 1), paste the key and your home and office addresses.</li>
+</ol>
+<h3>Changing anything else</h3>
+All settings live in <code>C:\HomeTV\app\js\config.js</code> (world clock cities, app row, art themes, music stations, countdowns, kids' tasks…). Edit it in Notepad, then run Setup.cmd and choose <b>option 2</b> to reinstall with your edits.
+
+<h2>If something isn't working</h2>
+<table>
+<tr><td>TV doesn't switch on by itself</td><td>Check <b>Power On with Mobile</b> is on and the TV is plugged in at the wall. See <code>C:\HomeTV\wake-log.txt</code>.</td></tr>
+<tr><td>Dashboard doesn't open at switch-on</td><td>Make sure Docker Desktop is running on the laptop. After a big TV update Developer Mode can switch off – turn it on again (step 3 tip) and run Setup.cmd → option 2.</td></tr>
+<tr><td>No greeting voice or calendar</td><td>The laptop's address may have changed – run Setup.cmd → option 1. Reserving the laptop's address in your router prevents this.</td></tr>
+<tr><td>Anything else</td><td>Look at <code>C:\HomeTV\health-log.txt</code>, or just run Setup.cmd again – it is safe to repeat.</td></tr>
+</table>
+
+<h2>Privacy &amp; credits</h2>
+<p>Everything runs on your own laptop and TV; your settings and keys never leave your home. Art: Art Institute of Chicago and Cleveland Museum of Art open-access collections. Weather and air quality: Open-Meteo. Exchange rates: open.er-api.com. Gold: gold-api.com. Music: public internet radio stations (edit the list in config.js). Greeting voice: Microsoft Edge neural voices.</p>
+<p><small>Built with Claude. Shared as-is for personal use.</small></p>
+</main></body></html>

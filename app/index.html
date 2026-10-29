@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920, height=1080, initial-scale=1, user-scalable=no">
+<title>Home</title>
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/compat.css">
+<!-- Samsung TV platform APIs (only exist on the TV; harmless 404 in a laptop browser) -->
+<script src="$WEBAPIS/webapis/webapis.js"></script>
+</head>
+<body>
+<div id="screen">
+
+  <!-- ===== Home screen ===== -->
+  <div id="home">
+    <div id="bg" class="bg"></div>
+    <div id="bgDim" class="bg-dim"></div>
+
+    <div id="pframe" class="pframe hidden">
+      <img id="pfA" class="pf-img" alt=""><img id="pfB" class="pf-img" alt="">
+      <div class="pf-cap"><b id="pfKick"></b><span id="pfCap"></span></div>
+    </div>
+    <header class="hdr">
+      <div class="hdr-left">
+        <p class="hdr-date"><span id="date"></span> · <span id="greeting"></span></p>
+        <p class="hdr-clock"><span id="clock"></span><span id="ampm" class="ampm"></span></p>
+      </div>
+      <div class="hdr-right">
+        <div class="wx">
+          <span id="wxIcon" class="wx-icon"></span>
+          <p id="wxTemp" class="wx-temp">—</p>
+          <div class="wx-text">
+            <p id="wxDesc" class="wx-desc"></p>
+            <p id="wxRange" class="wx-range"></p>
+          </div>
+        </div>
+        <div class="chips">
+          <p id="chipAqi" class="chip hidden"></p>
+          <p id="chipUv" class="chip hidden"></p>
+          <p id="chipSunrise" class="chip hidden"></p>
+          <p id="chipSunset" class="chip hidden"></p>
+        </div>
+      </div>
+    </header>
+
+    <section class="main">
+      <div class="panel card-wrap">
+        <div class="card-head">
+          <p id="cardTitle" class="eyebrow accent"></p>
+          <div id="cardDots" class="dots"></div>
+        </div>
+        <div id="card" class="card"></div>
+      </div>
+      <div class="tiles">
+        <div id="tileA" class="tile"></div>
+        <div id="tileB" class="tile"></div>
+        <div id="tileC" class="tile"></div>
+        <div id="tileD" class="tile"></div>
+      </div>
+    </section>
+
+    <nav id="apps" class="apps" aria-label="Apps"></nav>
+    <p id="credit" class="credit"></p>
+  </div>
+
+  <!-- ===== Idle / gallery mode ===== -->
+  <div id="idle" class="idle hidden">
+    <div class="idle-top">
+      <p class="idle-clock"><span id="iClock"></span><span id="iAmpm" class="ampm"></span><span id="iDate" class="idle-date"></span></p>
+      <p class="idle-hint">◀ ▶ to switch · any other button for home</p>
+    </div>
+    <div class="idle-mid">
+      <div id="iStage" class="idle-stage">
+        <div id="iFrame" class="frame"><img id="iImg" alt=""></div>
+      </div>
+      <div class="label">
+        <p id="iTheme" class="eyebrow accent">Gallery</p>
+        <p id="iTitle" class="label-title">Opening the gallery…</p>
+        <p id="iArtist" class="label-artist"></p>
+        <p id="iMeta" class="label-meta"></p>
+        <p id="iNote" class="label-note"></p>
+        <p id="iMuseum" class="label-museum"></p>
+      </div>
+    </div>
+    <div class="idle-bottom">
+      <div class="idle-chips">
+        <p id="iPrayer" class="ichip"></p>
+        <p id="iCount" class="ichip hidden"></p>
+      </div>
+      <p id="iMusic" class="ichip hidden"></p>
+    </div>
+  </div>
+
+  <div id="greet" class="greet hidden"></div>
+  <div id="overlay" class="overlay hidden"></div>
+  <div id="toast" class="toast hidden"></div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/util.js"></script>
+<script src="js/ical.js"></script>
+<script src="js/sources.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

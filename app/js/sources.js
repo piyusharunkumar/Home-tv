@@ -582,9 +582,9 @@ window.Sources = (function () {
   }
 
   // shape: 'landscape' (background) or 'any' (gallery frame)
-  async function pickArt(shape, themeIndex) {
+  async function pickArt(shape, themeIndex, noFilm) {
     // Gallery only: every Nth picture is a film poster, when a TMDB key is set.
-    if (shape === 'any' && C.tmdbKey) {
+    if (shape === 'any' && C.tmdbKey && !noFilm) {
       var n = U.store.get('gallery_n', 0) + 1;
       U.store.set('gallery_n', n);
       if (n % (C.posterEvery || 5) === 0) {
@@ -668,6 +668,6 @@ window.Sources = (function () {
   return {
     weather: weather, airQuality: airQuality, prayers: prayers, fx: fx, commute: commute, commuteDetail: commuteDetail, pushed: pushed, mergeEvents: mergeEvents, whereabouts: whereabouts, inbox: inbox,
     driveMinutes: driveMinutes, calendar: calendar, spotifyNow: spotifyNow, spotifyControl: spotifyControl,
-    cricket: cricket, news: news, kids: kids, flight: flight, pickArt: pickArt, demo: demo
+    cricket: cricket, news: news, kids: kids, flight: flight, pickArt: pickArt, pickFilm: pickFilm, demo: demo
   };
 })();

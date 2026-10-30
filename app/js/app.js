@@ -692,9 +692,19 @@
   }
 
   async function loadIdleArt() {
+    if (loadIdleArt.busy) return;
+    loadIdleArt.busy = true;
+    try { await loadIdleArtInner(); } finally { loadIdleArt.busy = false; }
+  }
+  async function loadIdleArtInner() {
     var art = null;
-    // Every few pictures, a family photo instead of a painting.
-    if (C.photoFrame !== false) {
+    if (view.manualGallery) {
+      // Carousel (opened from the Gallery tile): four paintings, then a film poster, and round again.
+      var slot = view.gSlot = (view.gSlot || 0) + 1;
+      if (slot % 5 === 0 && C.tmdbKey) { try { art = await Sources.pickFilm(); } catch (e) { console.warn('[poster]', e.message); } }
+      if (!art) art = await Sources.pickArt('any', null, true);
+    } else if (C.photoFrame !== false) {
+      // Night gallery: every few pictures, a family photo instead of a painting.
       loadIdleArt.n = (loadIdleArt.n || 0) + 1;
       if (loadIdleArt.n % (C.photoEvery || 4) === 0) {
         try {
@@ -706,7 +716,7 @@
     if (!art) art = await Sources.pickArt('any');
     if (art) {
       var frame = $('iFrame');
-      if (view.idle) { frame.style.opacity = 0; await new Promise(function (r) { setTimeout(r, 1200); }); }
+      if (view.idle) { frame.style.opacity = 0; await new Promise(function (r) { setTimeout(r, 900); }); }
       S.artIdle = art;
       drawIdleArt();
       frame.style.opacity = 1;
@@ -719,10 +729,14 @@
     $('idle').classList.remove('hidden');
     $('home').classList.add('hidden');
     drawIdleArt();
+    view.gSlot = 0;
     loadIdleArt();
+    clearInterval(view.carousel);
+    if (view.manualGallery) view.carousel = setInterval(function () { if (view.idle && !document.hidden) loadIdleArt(); }, (C.galleryCarouselSeconds || 10) * 1000);
   }
 
   function exitIdle() {
+    clearInterval(view.carousel);
     view.idle = false;
     view.manualGallery = false;
     $('idle').classList.add('hidden');

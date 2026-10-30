@@ -844,7 +844,9 @@
     if (kind === 'quiz' && !(r.quiz && r.quiz.questions && r.quiz.questions.length)) kind = 'card';
     if (kind === 'route' && !(r.route && r.route.destination && C.googleMapsKey)) kind = 'card';
     if (kind === 'videos' && !(r.videos && r.videos.items && r.videos.items.length)) kind = 'card';
-    askActions(r.actions);
+    var acts = (r.actions || []).filter(function (x) { return !(kind === 'videos' && x && (x.do === 'open_app' || x.do === 'gallery' || x.do === 'home')); });
+    if (acts.length) tvlog('ask actions: ' + acts.map(function (x) { return x.do + (x.target ? ':' + x.target : ''); }).join(', '));
+    askActions(acts);
     if (kind === 'card') showAskCard(a, r);
     else openAsk(kind, a, r);
     tvlog('ask shown: ' + kind + ' (asked for ' + r.kind + ') · ' + (a.q || '').slice(0, 80));
@@ -873,6 +875,11 @@
     clearInterval(A.autoTimer); A.auto = 0;
     if (kind === 'videos') {
       A.vf = 0;
+      setTimeout(function () {                 // diagnostics: what the TV actually has on screen
+        var g = document.querySelector('#ask .avgrid'), im = document.querySelector('#ask .avth img');
+        tvlog('videos check: hidden=' + document.hidden + ' open=' + A.open + ' askClass=' + $('ask').className +
+          ' grid=' + (g ? g.offsetWidth + 'x' + g.offsetHeight : 'none') + ' img=' + (im ? im.naturalWidth : 'none') + ' html=' + $('ask').innerHTML.length);
+      }, 5000);
       if (A.data.autoplay) {                   // "play X": start the top result unless someone picks another
         A.auto = 8;
         A.autoTimer = setInterval(function () {

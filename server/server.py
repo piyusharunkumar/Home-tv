@@ -325,7 +325,7 @@ def ask_system(who):
         "- Quizzes: 8 questions unless asked otherwise, 4 options each; list the players if they were named.\n"
         "- Videos: for anything to watch or listen to (a song, 'play X', recipes, tutorials, workouts, cartoons) use kind=videos with a "
         "good YouTube search query; the TV finds the videos itself, so don't web search for them. Spotify isn't connected, so 'play X on "
-        "Spotify' also becomes videos (say you're playing it from YouTube). Keep queries family-friendly.\n"
+        "Spotify' also becomes videos (say you're playing it from YouTube). Keep queries family-friendly. Don't add an open_app action for videos: the TV shows the picker and opens YouTube itself.\n"
         "- Actions: use them when asked to show the gallery, go home, play or stop music, show a screen or open an app.\n"
     )
 
@@ -393,7 +393,8 @@ def handle_ask(who, question):
     ASK_STATE["last"] = {"id": time.time(), "q": question[:200], "who": who, "result": res}
     try:
         with open(os.path.join(PUSH_DIR, "ask-log.txt"), "a", encoding="utf-8") as fh:
-            fh.write("%s %s [%s] %s\n" % (time.strftime("%F %T"), who, res.get("kind"), question[:200]))
+            fh.write("%s %s [%s] %s%s\n" % (time.strftime("%F %T"), who, res.get("kind"), question[:200],
+                     "  actions=" + json.dumps(res.get("actions")) if res.get("actions") else ""))
     except Exception:  # noqa: BLE001
         pass
     return res

@@ -49,6 +49,7 @@ window.CONFIG = {
   // Free key from themoviedb.org (Settings → API → "API Key"). Leave blank for paintings only.
   tmdbKey: "",
   posterEvery: 5,             // one poster for every N gallery pictures
+  galleryCarouselSeconds: 60, // Gallery tile: seconds per picture
 
   // ---------- Family photos (optional, needs extras/photo-frame) ----------
   // A "Memories" screen in the rotation, and one family photo every N gallery pictures.

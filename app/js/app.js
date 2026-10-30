@@ -732,7 +732,7 @@
     view.gSlot = 0;
     loadIdleArt();
     clearInterval(view.carousel);
-    if (view.manualGallery) view.carousel = setInterval(function () { if (view.idle && !document.hidden) loadIdleArt(); }, (C.galleryCarouselSeconds || 10) * 1000);
+    if (view.manualGallery) view.carousel = setInterval(function () { if (view.idle && !document.hidden) loadIdleArt(); }, (C.galleryCarouselSeconds || 60) * 1000);
   }
 
   function exitIdle() {

@@ -13,6 +13,7 @@ services:
       PORT: "8080"
       CACHE_SECONDS: "300"
       PUSH_KEY: ${PUSH_KEY:-}
+      TV_IP: ${TV_IP:-}          # your TV's address, lets Sam open YouTube videos
       PUSH_DIR: /data
       # Optional: whose phone calendar (the Shortcut's "who") should interrupt the TV 5 minutes before a meeting
       REMIND_WHO: ${REMIND_WHO:-}

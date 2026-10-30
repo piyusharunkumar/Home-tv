@@ -112,10 +112,10 @@ def parse_push(body):
 
 
 def due_meeting():
-    """The next timed meeting on REMIND_WHO's phone calendar starting within REMIND_MIN minutes, once each."""
-    from datetime import datetime
     if not REMIND_WHO:
         return None
+    """The next timed meeting on REMIND_WHO's phone calendar starting within REMIND_MIN minutes, once each."""
+    from datetime import datetime
     try:
         with open(os.path.join(PUSH_DIR, "push-%s.json" % REMIND_WHO), encoding="utf-8") as fh:
             data = json.load(fh)
@@ -156,6 +156,71 @@ def read_pushed():
 ASK_STATE = {"busy": None, "last": None, "context": {}, "context_at": 0}
 ASK_HISTORY = {}          # who -> [(t, role, text)] for follow-up questions (15 minutes)
 ASK_MODEL = os.environ.get("ASK_MODEL", "claude-haiku-5-5")
+try:
+    with open(os.path.join(os.environ.get("PUSH_DIR", "/data"), "context.json"), encoding="utf-8") as _fh:
+        _c = json.load(_fh)
+        ASK_STATE["context"], ASK_STATE["context_at"] = _c.get("context") or {}, _c.get("at") or 0
+except Exception:  # noqa: BLE001
+    pass
+
+
+# ---- YouTube search (no API key: reads the public results page) + DIAL launch on the TV ----
+import re
+TV_IP = os.environ.get("TV_IP", "")          # your TV's address, for opening YouTube videos
+
+YT_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
+
+def _txt(o):
+    if not o: return ""
+    if "simpleText" in o: return o["simpleText"]
+    return "".join(r.get("text", "") for r in o.get("runs", []))
+
+def _walk(o, out):
+    if isinstance(o, dict):
+        v = o.get("videoRenderer")
+        if v and v.get("videoId") and v.get("lengthText"):      # lengthText missing = live/upcoming
+            out.append(v)
+        for x in o.values():
+            if isinstance(x, (dict, list)): _walk(x, out)
+    elif isinstance(o, list):
+        for x in o: _walk(x, out)
+
+def youtube_search(q, n=6, timeout=12):
+    url = "https://www.youtube.com/results?" + urllib.parse.urlencode({"search_query": q, "hl": "en", "gl": "AE"})
+    req = urllib.request.Request(url, headers={"User-Agent": YT_UA, "Accept-Language": "en-US,en;q=0.9",
+                                               "Cookie": "CONSENT=YES+1; SOCS=CAI"})
+    html = urllib.request.urlopen(req, timeout=timeout).read().decode("utf-8", "replace")
+    m = re.search(r"var ytInitialData = (\{.*?\});</script>", html, re.S)
+    if not m: return []
+    found = []
+    _walk(json.loads(m.group(1)), found)
+    seen, res = set(), []
+    for v in found:
+        vid = v["videoId"]
+        if vid in seen: continue
+        seen.add(vid)
+        res.append({"id": vid, "title": _txt(v.get("title"))[:120], "channel": _txt(v.get("ownerText"))[:60],
+                    "length": _txt(v.get("lengthText")), "views": _txt(v.get("shortViewCountText")),
+                    "age": _txt(v.get("publishedTimeText"))})
+        if len(res) >= n: break
+    return res
+
+
+def youtube_play(vid):
+    """Ask the TV's YouTube app to open a video (DIAL, the same way phones cast)."""
+    if not TV_IP:
+        return False, "TV_IP not set"
+    if not re.fullmatch(r"[A-Za-z0-9_-]{11}", vid or ""):
+        return False, "bad id"
+    req = urllib.request.Request("http://%s:8080/ws/apps/YouTube" % TV_IP, data=("v=" + vid).encode(),
+                                 headers={"Content-Type": "text/plain; charset=utf-8"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=8) as r:
+            return True, "HTTP %s" % r.status
+    except urllib.error.HTTPError as e:
+        return e.code in (200, 201), "HTTP %s" % e.code
+    except Exception as e:  # noqa: BLE001
+        return False, str(e)[:120]
 
 
 def ask_settings():
@@ -172,8 +237,8 @@ RESPOND_TOOL = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "kind": {"type": "string", "enum": ["card", "route", "trip", "explainer", "quiz"],
-                     "description": "card: a one-line answer or a confirmation. route: directions or drive time to a place. trip: travel plans. explainer: anything with more than two facts (how things work, how-tos, recommendations, lists, comparisons, recipes). quiz: quizzes and games."},
+            "kind": {"type": "string", "enum": ["card", "route", "trip", "explainer", "quiz", "videos"],
+                     "description": "card: a one-line answer or a confirmation. videos: anything to watch or listen to on YouTube (songs, music, recipes, how-to videos, workouts, kids' shows). route: directions or drive time to a place. trip: travel plans. explainer: anything with more than two facts (how things work, how-tos, recommendations, lists, comparisons, recipes). quiz: quizzes and games."},
             "speech": {"type": "string", "description": "What the TV says out loud. One or two short, warm sentences."},
             "card": {"type": "object", "properties": {
                 "answer": {"type": "string", "description": "The main answer, under 18 words"},
@@ -205,6 +270,11 @@ RESPOND_TOOL = {
                     "answer": {"type": "integer", "description": "index 0-3 of the right option"}},
                     "required": ["q", "options", "answer"]}}},
                 "required": ["topic", "questions"]},
+            "videos": {"type": "object", "properties": {
+                "query": {"type": "string", "description": "What to search YouTube for, e.g. 'easy sushi recipe at home', 'Eagles Hotel California'"},
+                "title": {"type": "string", "description": "Short heading for the screen, e.g. 'Sushi at home'"},
+                "autoplay": {"type": "boolean", "description": "true when they asked to play one specific thing (a named song or video); false when they want to browse"}},
+                "required": ["query"]},
             "actions": {"type": "array", "items": {"type": "object", "properties": {
                 "do": {"type": "string", "enum": ["gallery", "home", "play_jazz", "play_bhajans", "stop_music", "show_screen", "open_app"]},
                 "target": {"type": "string", "description": "screen name (commute, calendar, weather, orders, memories, news) or app name"}},
@@ -235,7 +305,15 @@ def ask_system(who):
         "Use trip for travel plans, explainer for anything with more than two facts, quiz for quizzes. "
         "A full screen is better than a cramped card, so when in doubt, choose the full screen.\n"
         "- 'Here' or 'from here' means home, unless the question says otherwise.\n"
-        "- Keep it short and warm. speech is read aloud: 1-2 sentences, no lists, no URLs.\n"
+        "- Personality: you're a cheerful, curious friend to the whole family, not a search engine. Talk like a person: "
+        "use the asker's name now and then, contractions, a little warmth or humour, and react to what they said "
+        "('Ooh, Salalah in November is a great idea!'). With children, be playful and encouraging.\n"
+        "- speech is read aloud: 2-3 natural sentences, no lists, no URLs. Answer first, then, when it helps, end with "
+        "one short, useful follow-up offer or question ('Want me to add a beach day?', 'Shall I quiz you on the 8 times table next?'). "
+        "Don't ask a follow-up every single time, and never for simple confirmations.\n"
+        "- The on-screen card answer can be conversational too, but keep it under 18 words.\n"
+        "- Follow-ups come as a new question a moment later ('yes please', 'make it shorter'); use the earlier turns to understand them.\n"
+        "- Never guess facts. Weather, times and numbers come from the dashboard data above or from a web search, nothing else.\n"
         "- Use web search for anything current (prices, opening hours, events, weather beyond the dashboard, news). "
         "Don't search for things the dashboard already knows.\n"
         "- Family members' whereabouts: give only an ETA or 'on the way home' / 'at home', never an address or coordinates.\n"
@@ -245,6 +323,9 @@ def ask_system(who):
         "- Explainers: pitch the language at the audience asked for (default: a curious 9-year-old). If someone asks for a number of "
         "things (three facts, five ideas), give exactly that many points; never pad with filler.\n"
         "- Quizzes: 8 questions unless asked otherwise, 4 options each; list the players if they were named.\n"
+        "- Videos: for anything to watch or listen to (a song, 'play X', recipes, tutorials, workouts, cartoons) use kind=videos with a "
+        "good YouTube search query; the TV finds the videos itself, so don't web search for them. Spotify isn't connected, so 'play X on "
+        "Spotify' also becomes videos (say you're playing it from YouTube). Keep queries family-friendly.\n"
         "- Actions: use them when asked to show the gallery, go home, play or stop music, show a screen or open an app.\n"
     )
 
@@ -297,8 +378,18 @@ def handle_ask(who, question):
         res = ask_claude(who, question)
     except Exception as e:  # noqa: BLE001
         res = {"kind": "card", "speech": str(e), "card": {"answer": str(e)}, "phone_text": str(e)}
-    finally:
-        ASK_STATE["busy"] = None
+    if res.get("kind") == "videos":
+        v = res.get("videos") or {}
+        try:
+            v["items"] = youtube_search(v.get("query") or question, 6)
+        except Exception as e:  # noqa: BLE001
+            v["items"] = []
+            print("youtube search failed:", e)
+        res["videos"] = v
+        if not v["items"]:
+            res = {"kind": "card", "speech": "Sorry, I couldn't reach YouTube just now. Try again in a minute?",
+                   "card": {"answer": "Couldn't reach YouTube just now"}, "phone_text": "Couldn't reach YouTube just now."}
+    ASK_STATE["busy"] = None
     ASK_STATE["last"] = {"id": time.time(), "q": question[:200], "who": who, "result": res}
     try:
         with open(os.path.join(PUSH_DIR, "ask-log.txt"), "a", encoding="utf-8") as fh:
@@ -341,6 +432,8 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     ASK_STATE["context"] = json.loads(self.rfile.read(n).decode("utf-8", "replace"))
                     ASK_STATE["context_at"] = time.time()
+                    with open(os.path.join(PUSH_DIR, "context.json"), "w", encoding="utf-8") as fh:   # survives restarts
+                        json.dump({"at": ASK_STATE["context_at"], "context": ASK_STATE["context"]}, fh)
                 except Exception:  # noqa: BLE001
                     pass
             return self._send(204, b"")
@@ -391,6 +484,11 @@ class Handler(BaseHTTPRequestHandler):
             CMD["do"] = urllib.parse.parse_qs(parts.query).get("do", [""])[0][:12]
             CMD["t"] = int(time.time())
             return self._send(200, b'{"ok": true}', "application/json")
+        if parts.path == "/ytplay":                    # TV asks: open this YouTube video (LAN only)
+            vid = urllib.parse.parse_qs(parts.query).get("v", [""])[0][:11]
+            ok, info = youtube_play(vid)
+            print("ytplay", vid, ok, info)
+            return self._send(200, json.dumps({"ok": ok, "info": info}).encode(), "application/json")
         if parts.path == "/remind/test":               # demo: the next claim returns a pretend meeting in 5 minutes
             TEST_REMIND["at"] = int(time.time())
             return self._send(200, b'{"ok": true}', "application/json")

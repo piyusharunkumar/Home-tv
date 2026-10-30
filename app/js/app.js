@@ -748,7 +748,7 @@
   // ---------- Ask the TV (questions come from the iPhone Shortcut via the laptop) ----------
   // The laptop asks Claude; answers arrive through /state as a short card or a full screen
   // (trip plan, explainer, quiz). Remote: arrows move, OK picks, BACK closes.
-  var A = { open: false, kind: '', data: null, page: 0, quiz: null, cardTimer: null };
+  var A = { open: false, kind: '', data: null, page: 0, quiz: null, cardTimer: null, autoTimer: null, auto: 0, vf: 0 };
 
   function postContext() {
     if (!RELAY) return;
@@ -843,6 +843,7 @@
     if (kind === 'explainer' && !(r.explainer && r.explainer.pages && r.explainer.pages.length)) kind = 'card';
     if (kind === 'quiz' && !(r.quiz && r.quiz.questions && r.quiz.questions.length)) kind = 'card';
     if (kind === 'route' && !(r.route && r.route.destination && C.googleMapsKey)) kind = 'card';
+    if (kind === 'videos' && !(r.videos && r.videos.items && r.videos.items.length)) kind = 'card';
     askActions(r.actions);
     if (kind === 'card') showAskCard(a, r);
     else openAsk(kind, a, r);
@@ -869,6 +870,17 @@
       var players = (A.data.players || []).filter(Boolean);
       A.quiz = { i: 0, focus: 0, players: players, turn: 0, scores: players.map(function () { return 0; }), total: 0, answered: -1, done: false };
     }
+    clearInterval(A.autoTimer); A.auto = 0;
+    if (kind === 'videos') {
+      A.vf = 0;
+      if (A.data.autoplay) {                   // "play X": start the top result unless someone picks another
+        A.auto = 8;
+        A.autoTimer = setInterval(function () {
+          if (!A.open || A.kind !== 'videos' || !A.auto) { clearInterval(A.autoTimer); return; }
+          if (--A.auto <= 0) { clearInterval(A.autoTimer); playVideo(A.data.items[A.vf]); } else drawAsk();
+        }, 1000);
+      }
+    }
     if (kind === 'route') {
       A.route = null; A.routeErr = false;
       Sources.commuteDetail(C.commute.origin, A.data.destination, true).then(function (rt) {
@@ -886,7 +898,31 @@
     $('ask').classList.remove('hidden');
     drawAsk();
   }
-  function closeAsk() { A.open = false; $('ask').classList.add('hidden'); $('ask').innerHTML = ''; }
+  function closeAsk() { clearInterval(A.autoTimer); A.auto = 0; A.open = false; $('ask').classList.add('hidden'); $('ask').innerHTML = ''; }
+
+  // Open a video in the TV's YouTube app: first the way phones cast (DIAL, via the laptop),
+  // then Tizen's own app link if that didn't bring YouTube to the front.
+  function playVideo(v) {
+    if (!v) return;
+    var yt = (C.apps.filter(function (x) { return x.label === 'YouTube'; })[0] || {}).appId || '9Ur5IzDKqV.TizenYouTube';
+    closeAsk(); stopSpeech(); stopCalm();
+    toast('▶ Opening on YouTube…');
+    if (!ON_TV) { toast('Would play ' + v.title + ' on YouTube'); return; }
+    function viaTizen(why) {
+      tvlog('youtube: tizen link (' + why + ') ' + v.id);
+      try {
+        var data = new tizen.ApplicationControlData('PAYLOAD', [JSON.stringify({ values: 'v=' + v.id })]);
+        var ctl = new tizen.ApplicationControl('http://tizen.org/appcontrol/operation/view', null, null, null, [data]);
+        tizen.application.launchAppControl(ctl, yt, function () {}, function (e) { tvlog('youtube tizen link failed: ' + e.message); launchApp({ label: 'YouTube', appId: yt }); });
+      } catch (e) { tvlog('youtube tizen link error: ' + e.message); launchApp({ label: 'YouTube', appId: yt }); }
+    }
+    if (!RELAY) return viaTizen('no laptop');
+    U.json(RELAY + '/ytplay?v=' + encodeURIComponent(v.id)).then(function (r) {
+      tvlog('youtube: dial ' + v.id + ' ' + (r && r.ok) + ' ' + (r && r.info));
+      if (!r || !r.ok) return viaTizen('dial said no');
+      setTimeout(function () { if (!document.hidden) viaTizen('still in front'); }, 7000);
+    }).catch(function (e) { viaTizen('laptop error ' + e.message); });
+  }
 
   function tripMapUrl(stops) {
     var pts = (stops || []).filter(function (s) { return typeof s.lat === 'number' && typeof s.lng === 'number'; });
@@ -907,7 +943,14 @@
 
   function drawAsk() {
     var el = $('ask'), d = A.data, html = '', asked = '“' + esc(A.q || '') + '”' + (A.who ? ' · ' + esc(A.who) : '');
-    if (A.kind === 'route') {
+    if (A.kind === 'videos') {
+      html = askTop(asked) + '<div class="avid"><p class="ak">YouTube' + (A.auto ? ' · playing the first one in ' + A.auto + ' s' : '') + '</p>' +
+        '<p class="attl">' + esc(d.title || d.query || 'Videos') + '</p><div class="avgrid">' + d.items.map(function (v, i) {
+          return '<div class="av' + (i === A.vf ? ' f' : '') + '"><div class="avth"><img src="https://i.ytimg.com/vi/' + esc(v.id) + '/mqdefault.jpg" alt="">' +
+            (v.length ? '<span>' + esc(v.length) + '</span>' : '') + '</div><p class="avt">' + esc(v.title) + '</p>' +
+            '<p class="avm">' + esc([v.channel, v.views ? v.views + ' views' : '', v.age].filter(Boolean).join(' · ')) + '</p></div>';
+        }).join('') + '</div></div>' + askBottom(['<b>Arrows</b> choose', '<b>OK</b> play on YouTube', '<b>BACK</b> close']);
+    } else if (A.kind === 'route') {
       var rt = A.route, name = d.label || d.destination;
       function rrow(k, v) { return '<div class="arow"><span>' + k + '</span><b>' + v + '</b></div>'; }
       html = askTop(asked) + '<div class="aroute"><div class="armap">' + (rt && rt.mapUrl ? '<img src="' + esc(rt.mapUrl) + '" alt="">' : '<p class="await">' + (A.routeErr ? 'Couldn\'t find a route there.' : 'Checking live traffic…') + '</p>') + '</div>' +
@@ -960,6 +1003,17 @@
   function askKey(code) {
     if (code === KEY.BACK || code === KEY.ESC) { closeAsk(); stopSpeech(); return; }
     if (A.kind === 'route') return;
+    if (A.kind === 'videos') {
+      var nv = A.data.items.length, cols = 3;
+      if (A.auto) { A.auto = 0; clearInterval(A.autoTimer); }   // any press: let them choose
+      if (code === KEY.RIGHT) A.vf = Math.min(nv - 1, A.vf + 1);
+      else if (code === KEY.LEFT) A.vf = Math.max(0, A.vf - 1);
+      else if (code === KEY.DOWN) A.vf = Math.min(nv - 1, A.vf + cols);
+      else if (code === KEY.UP) A.vf = A.vf >= cols ? A.vf - cols : A.vf;
+      else if (code === KEY.ENTER) { playVideo(A.data.items[A.vf]); return; }
+      drawAsk();
+      return;
+    }
     if (A.kind === 'trip' || A.kind === 'explainer') {
       var n = A.kind === 'trip' ? A.data.days.length : A.data.pages.length;
       if (code === KEY.RIGHT || code === KEY.DOWN || code === KEY.ENTER) A.page = Math.min(n - 1, A.page + 1);

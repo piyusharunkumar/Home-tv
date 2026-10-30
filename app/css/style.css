@@ -428,3 +428,17 @@ body { text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55); }
 .arows { margin-top: 30px; }
 .arow { display: flex; justify-content: space-between; padding: 16px 0; border-bottom: 1px solid var(--line); font-size: 26px; color: var(--muted); }
 .arow b { color: var(--ink); font-weight: 700; }
+
+/* Ask · YouTube picker */
+.avid { position: absolute; top: 130px; left: 96px; right: 96px; }
+.avid .attl { font-size: 50px; margin-top: 8px; }
+.avgrid { width: 1336px; margin: 26px auto 0; }
+.avgrid:after { content: ""; display: block; clear: both; }
+.av { float: left; width: 384px; margin: 0 56px 22px 0; padding: 12px; border-radius: 20px; }
+.av:nth-child(3n) { margin-right: 0; }
+.av.f { background: rgba(255,255,255,.08); box-shadow: 0 0 0 5px var(--accent); }
+.avth { position: relative; width: 384px; height: 216px; border-radius: 12px; overflow: hidden; background: #1d2330; }
+.avth img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avth span { position: absolute; right: 8px; bottom: 8px; padding: 2px 8px; border-radius: 6px; background: rgba(0,0,0,.8); font-size: 17px; font-weight: 600; }
+.avt { margin: 10px 0 0; font-size: 20px; font-weight: 600; line-height: 1.22; height: 49px; overflow: hidden; }
+.avm { margin: 5px 0 0; font-size: 16px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

@@ -732,6 +732,7 @@
     view.gSlot = 0;
     loadIdleArt();
     clearInterval(view.carousel);
+    if (!G.music && !document.hidden && !galleryHours()) playCalm(true);   // art + calm music; silent at night (galleryFrom–galleryUntil)
     if (view.manualGallery) view.carousel = setInterval(function () { if (view.idle && !document.hidden) loadIdleArt(); }, (C.galleryCarouselSeconds || 60) * 1000);
   }
 
@@ -1504,8 +1505,8 @@
 
   function tick() {
     drawClock();
-    if (!view.idle && !G.active && Date.now() - view.lastInput > C.idleMinutes * 60000 && galleryHours()) enterIdle();
-    if (view.idle && !galleryHours() && !view.manualGallery) exitIdle();             // morning: back to the dashboard
+    // No remote press for idleMinutes → gallery, any time of day (not while another app is in front or Sam's screen is open).
+    if (!view.idle && !G.active && !A.open && !document.hidden && Date.now() - view.lastInput > C.idleMinutes * 60000) enterIdle();
   }
 
   function keepScreenOn() {

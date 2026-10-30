@@ -442,3 +442,5 @@ body { text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55); }
 .avth span { position: absolute; right: 8px; bottom: 8px; padding: 2px 8px; border-radius: 6px; background: rgba(0,0,0,.8); font-size: 17px; font-weight: 600; }
 .avt { margin: 10px 0 0; font-size: 20px; font-weight: 600; line-height: 1.22; height: 49px; overflow: hidden; }
 .avm { margin: 5px 0 0; font-size: 16px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+#apps .app span { white-space: nowrap; }

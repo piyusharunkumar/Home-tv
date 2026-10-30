@@ -602,7 +602,10 @@
   var APP_DOT = { 'netflix': '#E50914', 'youtube': '#FF0033', 'youtube kids': '#FF4E45', 'prime video': '#1A98FF', 'disney+': '#2F5BFF',
     'spotify': '#1DB954', 'apple tv': '#A1A1A6', 'shahid': '#2EC4B6', 'osn+': '#E4A11B', 'jiohotstar': '#1F80E0' };
   // The apps row, plus a last "Gallery" tile (Samsung's smart remote has no colour buttons).
-  function appTiles() { return C.apps.concat([{ label: 'Gallery', gallery: true, color: '#F2B36B' }]); }
+  function appTiles() {
+    return C.apps.concat([{ label: 'Gallery', gallery: true, color: '#F2B36B' },
+      { label: G.music ? '♪ On' : '♪ Off', music: true, color: G.music ? '#6FD39A' : '#6B7280' }]);
+  }
   function drawApps() {
     // Calm, identical tiles: name + a small brand-colour dot (no mismatched logo images).
     $('apps').innerHTML = appTiles().map(function (a, i) {
@@ -628,6 +631,7 @@
 
   function launchApp(a) {
     if (a && a.gallery) { view.manualGallery = true; enterIdle(); return; }
+    if (a && a.music) { toggleCalm(); return; }
     if (!a.appId) { toast('No app ID set for ' + a.label + ' — press the BLUE button to find it.'); return; }
     if (!ON_TV) { toast('Would open ' + a.label + ' (' + a.appId + ') on the TV'); return; }
     try {
@@ -1259,21 +1263,46 @@
     var g = C.greetings, pick0 = kind === 'jazz' ? { label: 'Instrumental jazz', urls: g.jazzUrls || [] } :
       kind === 'bhajans' && g.bhajanUrls ? { label: 'Bhajans', urls: g.bhajanUrls } : musicChoice(), urls = pick0.urls;
     stopCalm();
-    var i = 0;
-    (function tryNext() {
-      if (i >= urls.length) { toast('Could not start the music'); stopCalm(); return; }
-      var m = new Audio(urls[i++]), started = false;
+    if (!urls.length) return;
+    var i = 0, fails = 0, token = {};
+    G.musicToken = token;
+    function tryNext() {
+      if (G.musicToken !== token) return;
+      if (fails >= urls.length * 2) { toast('Could not start the music'); stopCalm(); return; }
+      if (G.music) { try { G.music.pause(); G.music.src = ''; } catch (e) { /* ignore */ } }
+      var m = new Audio(urls[i % urls.length]), started = false;
+      i++;
       G.music = m;
-      var fail = function () { if (G.music !== m || started) { if (G.music === m && started) { started = false; tryNext(); } return; } tryNext(); };
-      m.onplaying = function () { started = true; };
-      m.onerror = fail;
+      var fail = function () { if (G.music !== m) return; fails++; started = false; tryNext(); };
+      m.onplaying = function () { started = true; fails = 0; };
+      m.onerror = fail; m.onended = fail;
       var p = m.play();
       if (p && p.catch) p.catch(fail);
-      setTimeout(function () { if (G.music === m && !started) { try { m.pause(); m.src = ''; } catch (e) { /* ignore */ } tryNext(); } }, 12000);
-    })();
+      setTimeout(function () { if (G.music === m && !started) fail(); }, 12000);
+      drawApps();
+    }
+    tryNext();
+    // Internet radio sometimes stalls silently: if the position stops moving, move to the next station.
+    var last = -1, stuck = 0;
+    clearInterval(G.musicWatch);
+    G.musicWatch = setInterval(function () {
+      if (G.musicToken !== token || !G.music) { clearInterval(G.musicWatch); return; }
+      var t = G.music.currentTime;
+      if (G.music.paused || t === last) stuck++; else stuck = 0;
+      last = t;
+      if (stuck >= 2) { stuck = 0; last = -1; tvlog('music stalled, switching station'); tryNext(); }
+    }, 10000);
     toast('♪ ' + pick0.label + ' · ⏯ or RED stops it');
   }
-  function stopCalm() { if (G.music) { try { G.music.pause(); G.music.src = ''; } catch (e) { /* ignore */ } G.music = null; } }
+  function toggleCalm() {
+    var ok = G.music && !G.music.paused && G.music.currentTime > 0;
+    if (ok) { stopCalm(); toast('Music off'); } else playCalm(false);
+  }
+  function stopCalm() {
+    G.musicToken = null; clearInterval(G.musicWatch);
+    if (G.music) { try { G.music.pause(); G.music.src = ''; } catch (e) { /* ignore */ } G.music = null; }
+    if ($('apps')) drawApps();
+  }
 
   // Greet every time the TV is switched on. The laptop's TV watcher tells the relay when the TV
   // powers on (GET /poweron); the app compares that moment with the last greeting it gave.
@@ -1379,7 +1408,7 @@
     var media = MEDIA[code];
     if (media) {
       e.preventDefault();
-      if (/Play|Pause/.test(media)) musicAction('toggle');
+      if (/Play|Pause/.test(media)) { if (C.spotify && C.spotify.clientId) musicAction('toggle'); else toggleCalm(); }
       else if (/Next|FastForward/.test(media)) musicAction('next');
       else if (/Previous|Rewind/.test(media)) musicAction('prev');
       else if (media === 'ColorF3Blue') showAppIds();

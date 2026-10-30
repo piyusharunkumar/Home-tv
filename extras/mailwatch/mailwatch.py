@@ -13,7 +13,7 @@ DATA = "/data"
 SECRET = os.path.join(DATA, "mail-secret.json")
 OUT = os.path.join(DATA, "inbox.json")
 USER = os.environ.get("GMAIL_USER", "")
-EVERY = int(os.environ.get("MAIL_EVERY", "600"))
+EVERY = int(os.environ.get("MAIL_EVERY", "150"))
 TZ = timezone(timedelta(hours=float(os.environ.get("UTC_OFFSET_HOURS", "4"))))
 
 SHOPS = "amazon.ae OR temu.com OR noon.com OR namshi.com OR talabat.com OR carrefouruae.com"

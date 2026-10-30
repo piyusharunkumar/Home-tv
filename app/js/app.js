@@ -1516,7 +1516,7 @@
       if (S.papa && !was && !view.idle) { view.card = 'papa'; drawCard(true); }
       if (view.card === 'papa' && !view.idle) drawCard(false);
     });
-    reg('inbox', 3 * MIN, async function () {
+    reg('inbox', 1 * MIN, async function () {
       var before = {};
       ((S.inbox && S.inbox.deliveries) || []).forEach(function (x) { before[x.key] = x.status; });
       var first = !S.inbox;

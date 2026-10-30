@@ -39,8 +39,8 @@ window.CONFIG = {
   // ---------- Museum art (no keys needed) ----------
   // source "aic" = Art Institute of Chicago, "cma" = Cleveland Museum of Art (open-access collections).
   artThemes: [
-    { name: "Impressionism",     source: "aic", query: "impressionism" },
-    { name: "Japanese prints",   source: "aic", query: "ukiyo-e woodblock print" },
+    { name: "Impressionism",     source: "cma", query: "impressionism", type: "Painting" },
+    { name: "Japanese prints",   source: "cma", query: "woodblock", department: "Japanese Art" },
     { name: "Indian miniatures", source: "cma", query: "painting", department: "Indian and Southeast Asian Art" },
     { name: "Landscapes",        source: "cma", query: "landscape", type: "Painting" }
   ],

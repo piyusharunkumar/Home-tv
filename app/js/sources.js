@@ -592,8 +592,14 @@ window.Sources = (function () {
       }
     }
     var themes = C.artThemes;
-    var theme = themes[(themeIndex == null ? Math.floor(Math.random() * themes.length) : themeIndex) % themes.length];
-    var pool = await artPool(theme);
+    var start = (themeIndex == null ? Math.floor(Math.random() * themes.length) : themeIndex) % themes.length;
+    var theme = themes[start], pool = [];
+    // If a museum is down or blocks us, fall back to the next theme rather than leaving the wall blank.
+    for (var t = 0; t < themes.length; t++) {
+      theme = themes[(start + t) % themes.length];
+      try { pool = await artPool(theme); } catch (e) { console.warn('Art pool', theme.name, e.message); pool = []; }
+      if (pool.length) break;
+    }
     var seen = U.store.get('art_seen', []);
     var candidates = pool.filter(function (a) {
       return shape === 'landscape' ? a.ratio >= 1.25 : a.ratio >= 0.55 && a.ratio <= 1.9;

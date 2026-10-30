@@ -5,7 +5,7 @@ Google Sheet) that refuse cross-site requests from a TV app. The TV asks this
 relay instead:  GET /proxy?url=<encoded https URL>
 Only hosts in ALLOWED_HOSTS are fetched; responses are cached briefly.
 """
-import asyncio, hashlib, json, os, time, threading, urllib.parse, urllib.request
+import asyncio, hashlib, json, os, time, threading, urllib.error, urllib.parse, urllib.request
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 ALLOWED_HOSTS = {h.strip().lower() for h in os.environ.get(
@@ -150,6 +150,163 @@ def read_pushed():
     return out
 
 
+# ---- Ask the TV (/ask from the iPhone Shortcut; /context posted by the TV) ----
+# The question goes to Claude together with what the dashboard knows right now. The structured
+# answer is kept here; the TV picks it up through /state and shows it as a card or a full screen.
+ASK_STATE = {"busy": None, "last": None, "context": {}, "context_at": 0}
+ASK_HISTORY = {}          # who -> [(t, role, text)] for follow-up questions (15 minutes)
+ASK_MODEL = os.environ.get("ASK_MODEL", "claude-haiku-5-5")
+
+
+def ask_settings():
+    try:
+        with open(os.path.join(PUSH_DIR, "ask-secret.json"), encoding="utf-8") as fh:
+            return json.load(fh)
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+RESPOND_TOOL = {
+    "name": "respond",
+    "description": "Give the answer to show on the family TV. Always finish by calling this exactly once.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "kind": {"type": "string", "enum": ["card", "route", "trip", "explainer", "quiz"],
+                     "description": "card: a one-line answer or a confirmation. route: directions or drive time to a place. trip: travel plans. explainer: anything with more than two facts (how things work, how-tos, recommendations, lists, comparisons, recipes). quiz: quizzes and games."},
+            "speech": {"type": "string", "description": "What the TV says out loud. One or two short, warm sentences."},
+            "card": {"type": "object", "properties": {
+                "answer": {"type": "string", "description": "The main answer, under 18 words"},
+                "detail": {"type": "string", "description": "Optional one-line extra detail"}}},
+            "route": {"type": "object", "properties": {
+                "destination": {"type": "string", "description": "A place Google Maps can find, e.g. 'Fujairah International Airport, UAE'"},
+                "label": {"type": "string", "description": "Short name to show, e.g. 'Fujairah Airport'"}},
+                "required": ["destination"]},
+            "trip": {"type": "object", "properties": {
+                "title": {"type": "string"}, "meta": {"type": "string", "description": "Who, when, weather, how to get there; under 25 words"},
+                "days": {"type": "array", "items": {"type": "object", "properties": {
+                    "label": {"type": "string", "description": "e.g. Day 1"}, "title": {"type": "string"},
+                    "stops": {"type": "array", "items": {"type": "object", "properties": {
+                        "time": {"type": "string", "description": "Morning, Midday, 4 PM ..."}, "name": {"type": "string"},
+                        "desc": {"type": "string", "description": "One sentence"}, "lat": {"type": "number"}, "lng": {"type": "number"}},
+                        "required": ["time", "name", "desc"]}}},
+                    "required": ["label", "title", "stops"]}}},
+                "required": ["title", "days"]},
+            "explainer": {"type": "object", "properties": {
+                "title": {"type": "string"}, "audience": {"type": "string", "description": "e.g. for ages 7+ (leave empty if not for children)"},
+                "points": {"type": "array", "items": {"type": "string"},
+                           "description": "The points, one sentence each. Exactly as many as were asked for (e.g. 3 facts = 3 points); otherwise 3-6. The TV shows three per page."},
+                "image_query": {"type": "string", "description": "2-3 words to find a gentle museum painting or print to illustrate it, e.g. 'volcano eruption', 'sleeping cat'"}},
+                "required": ["title", "points"]},
+            "quiz": {"type": "object", "properties": {
+                "topic": {"type": "string"}, "players": {"type": "array", "items": {"type": "string"}},
+                "questions": {"type": "array", "items": {"type": "object", "properties": {
+                    "q": {"type": "string"}, "options": {"type": "array", "items": {"type": "string"}, "minItems": 4, "maxItems": 4},
+                    "answer": {"type": "integer", "description": "index 0-3 of the right option"}},
+                    "required": ["q", "options", "answer"]}}},
+                "required": ["topic", "questions"]},
+            "actions": {"type": "array", "items": {"type": "object", "properties": {
+                "do": {"type": "string", "enum": ["gallery", "home", "play_jazz", "play_bhajans", "stop_music", "show_screen", "open_app"]},
+                "target": {"type": "string", "description": "screen name (commute, calendar, weather, orders, memories, news) or app name"}},
+                "required": ["do"]}},
+            "phone_text": {"type": "string", "description": "Plain-text copy for the phone. For trips include the whole plan; otherwise repeat the answer briefly."},
+        },
+        "required": ["kind", "speech", "phone_text"],
+    },
+}
+
+
+def ask_system(who):
+    cfg = ask_settings()
+    ctx = ASK_STATE["context"] or {}
+    age = int(time.time() - ASK_STATE["context_at"]) if ASK_STATE["context_at"] else None
+    return (
+        "You are " + cfg.get("name", "the TV") + ", the voice of a family's living-room TV dashboard (the family says "
+        "'Hey " + cfg.get("name", "TV") + "' to ask you things). You answer questions spoken to an iPhone, "
+        "and your answer appears on the big TV screen and is read aloud. If it fits naturally, you can refer to yourself by name.\n"
+        "Household: " + cfg.get("family", "a family") + ". Home: " + cfg.get("home", cfg.get("city", "Dubai")) + ".\n"
+        "The person asking now: " + (who or "someone at home") + ".\n"
+        "Right now it is " + time.strftime("%A %d %B %Y, %H:%M") + " local time.\n"
+        "What the dashboard knows" + (" (updated %d s ago)" % age if age is not None else "") + ":\n"
+        + json.dumps(ctx, ensure_ascii=False)[:12000] + "\n\n"
+        "Rules:\n"
+        "- Always finish by calling the respond tool once. Use kind=card only for one-line answers and confirmations. "
+        "Use route for directions or 'how long to get to X' (the TV draws a live traffic map from home). "
+        "Use trip for travel plans, explainer for anything with more than two facts, quiz for quizzes. "
+        "A full screen is better than a cramped card, so when in doubt, choose the full screen.\n"
+        "- 'Here' or 'from here' means home, unless the question says otherwise.\n"
+        "- Keep it short and warm. speech is read aloud: 1-2 sentences, no lists, no URLs.\n"
+        "- Use web search for anything current (prices, opening hours, events, weather beyond the dashboard, news). "
+        "Don't search for things the dashboard already knows.\n"
+        "- Family members' whereabouts: give only an ETA or 'on the way home' / 'at home', never an address or coordinates.\n"
+        "- You can't change calendars, send messages, buy or book anything; say so kindly and suggest what to do instead.\n"
+        "- Everything you show may be seen by children: keep it family-friendly.\n"
+        "- Trips: 2-4 stops per day with real places and approximate lat/lng; a realistic pace for kids if kids are coming.\n"
+        "- Explainers: pitch the language at the audience asked for (default: a curious 9-year-old). If someone asks for a number of "
+        "things (three facts, five ideas), give exactly that many points; never pad with filler.\n"
+        "- Quizzes: 8 questions unless asked otherwise, 4 options each; list the players if they were named.\n"
+        "- Actions: use them when asked to show the gallery, go home, play or stop music, show a screen or open an app.\n"
+    )
+
+
+def ask_claude(who, question):
+    cfg = ask_settings()
+    key = cfg.get("api_key")
+    if not key:
+        raise RuntimeError("Ask the TV isn't set up yet (no API key on the laptop).")
+    now = time.time()
+    hist = [h for h in ASK_HISTORY.get(who, []) if now - h[0] < 15 * 60][-6:]
+    msgs = [{"role": r, "content": t} for _, r, t in hist]
+    msgs.append({"role": "user", "content": question})
+    tools = [{"type": "web_search_20250305", "name": "web_search", "max_uses": 3}, RESPOND_TOOL]
+    for _ in range(4):
+        body = json.dumps({"model": cfg.get("model", ASK_MODEL), "max_tokens": 6000, "system": ask_system(who),
+                           "tools": tools, "messages": msgs}).encode()
+        req = urllib.request.Request("https://api.anthropic.com/v1/messages", data=body, headers={
+            "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                d = json.load(r)
+        except urllib.error.HTTPError as e:
+            msg = e.read().decode("utf-8", "replace")
+            if "credit balance" in msg:
+                raise RuntimeError("The Claude account is out of credit. Top it up at console.anthropic.com.")
+            raise RuntimeError("Claude error %s" % e.code)
+        content = d.get("content", [])
+        for b in content:
+            if b.get("type") == "tool_use" and b.get("name") == "respond":
+                res = b.get("input") or {}
+                ASK_HISTORY[who] = hist + [(now, "user", question), (now, "assistant", json.dumps(res, ensure_ascii=False)[:1500])]
+                return res
+        if d.get("stop_reason") == "pause_turn":          # long web search: let it carry on
+            msgs.append({"role": "assistant", "content": content})
+            continue
+        text = " ".join(b.get("text", "") for b in content if b.get("type") == "text").strip()
+        if text:                                          # answered in plain text: show it as a card
+            res = {"kind": "card", "speech": text[:300], "card": {"answer": text[:140]}, "phone_text": text}
+            ASK_HISTORY[who] = hist + [(now, "user", question), (now, "assistant", text[:1500])]
+            return res
+        msgs.append({"role": "assistant", "content": content})
+        msgs.append({"role": "user", "content": "Please give the answer now by calling the respond tool."})
+    raise RuntimeError("Claude didn't give an answer.")
+
+
+def handle_ask(who, question):
+    ASK_STATE["busy"] = {"t": time.time(), "q": question[:200], "who": who}
+    try:
+        res = ask_claude(who, question)
+    except Exception as e:  # noqa: BLE001
+        res = {"kind": "card", "speech": str(e), "card": {"answer": str(e)}, "phone_text": str(e)}
+    finally:
+        ASK_STATE["busy"] = None
+    ASK_STATE["last"] = {"id": time.time(), "q": question[:200], "who": who, "result": res}
+    try:
+        with open(os.path.join(PUSH_DIR, "ask-log.txt"), "a", encoding="utf-8") as fh:
+            fh.write("%s %s [%s] %s\n" % (time.strftime("%F %T"), who, res.get("kind"), question[:200]))
+    except Exception:  # noqa: BLE001
+        pass
+    return res
+
 class Handler(BaseHTTPRequestHandler):
     def _send(self, code, body, ctype="text/plain; charset=utf-8"):
         self.send_response(code)
@@ -169,6 +326,38 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parts = urllib.parse.urlsplit(self.path)
+        if parts.path == "/tvlog":                     # errors and notes reported by the TV app (for fixing problems)
+            n = int(self.headers.get("Content-Length") or 0)
+            if 0 < n <= 16 * 1024:
+                try:
+                    with open(os.path.join(PUSH_DIR, "tv-log.txt"), "a", encoding="utf-8") as fh:
+                        fh.write(time.strftime("%F %T ") + self.rfile.read(n).decode("utf-8", "replace").replace("\n", " | ")[:2000] + "\n")
+                except Exception:  # noqa: BLE001
+                    pass
+            return self._send(204, b"")
+        if parts.path == "/context":                   # the TV's current view of the household, for Ask the TV
+            n = int(self.headers.get("Content-Length") or 0)
+            if 0 < n <= 256 * 1024:
+                try:
+                    ASK_STATE["context"] = json.loads(self.rfile.read(n).decode("utf-8", "replace"))
+                    ASK_STATE["context_at"] = time.time()
+                except Exception:  # noqa: BLE001
+                    pass
+            return self._send(204, b"")
+        if parts.path == "/ask":                       # from the iPhone Shortcut: {"key", "who", "q"}
+            n = int(self.headers.get("Content-Length") or 0)
+            try:
+                d = json.loads(self.rfile.read(n).decode("utf-8", "replace")) if 0 < n <= 64 * 1024 else {}
+            except Exception:  # noqa: BLE001
+                d = {}
+            if not PUSH_KEY or d.get("key") != PUSH_KEY:
+                return self._send(403, b"wrong key")
+            q = " ".join(str(d.get("q", "")).split())[:1000]
+            who = "".join(ch for ch in str(d.get("who", "")) if ch.isalnum())[:20]
+            if not q:
+                return self._send(400, b"Say something after Hey TV")
+            res = handle_ask(who, q)
+            return self._send(200, str(res.get("phone_text") or res.get("speech") or "Done").encode())
         if parts.path != "/push":
             return self._send(404, b"not found")
         n = int(self.headers.get("Content-Length") or 0)
@@ -222,7 +411,7 @@ class Handler(BaseHTTPRequestHandler):
                     arrive = json.load(fh).get("arriveAt", 0)
             except Exception:  # noqa: BLE001
                 pass
-            return self._send(200, json.dumps({"powerOn": POWER_ON["t"], "part": POWER_ON.get("part", ""), "arriveAt": arrive, "cmd": CMD if CMD.get("t") else None, "remind": REMIND if REMIND.get("t") and time.time() - REMIND["t"] < 600 else None}).encode(), "application/json")
+            return self._send(200, json.dumps({"powerOn": POWER_ON["t"], "part": POWER_ON.get("part", ""), "arriveAt": arrive, "cmd": CMD if CMD.get("t") else None, "remind": REMIND if REMIND.get("t") and time.time() - REMIND["t"] < 600 else None, "askBusy": ASK_STATE["busy"], "ask": ASK_STATE["last"] if ASK_STATE["last"] and time.time() - ASK_STATE["last"]["id"] < 600 else None}).encode(), "application/json")
         if parts.path == "/inbox":
             try:
                 with open(os.path.join(PUSH_DIR, "inbox.json"), encoding="utf-8") as fh:

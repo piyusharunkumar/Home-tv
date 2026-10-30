@@ -744,6 +744,258 @@
     drawAll();
   }
 
+  // ---------- Ask the TV (questions come from the iPhone Shortcut via the laptop) ----------
+  // The laptop asks Claude; answers arrive through /state as a short card or a full screen
+  // (trip plan, explainer, quiz). Remote: arrows move, OK picks, BACK closes.
+  var A = { open: false, kind: '', data: null, page: 0, quiz: null, cardTimer: null };
+
+  function postContext() {
+    if (!RELAY) return;
+    var now = new Date(), soon = now.getTime() + 3 * 86400000;
+    function t(d) { try { return d ? new Date(d).toString().slice(0, 21) : ''; } catch (e) { return ''; } }
+    var w = S.weather || {};
+    var snap = {
+      screen: A.open ? 'ask:' + A.kind : view.idle ? 'gallery' : view.card,
+      weather: S.weather ? { now: w.temp + '°, ' + w.desc, feels: w.feels, high: w.high, low: w.low, uv: w.uv, humidity: w.humidity,
+        sunrise: w.sunrise, sunset: w.sunset, nextHours: (w.hours || []).slice(0, 8), nextDays: (w.days || []).slice(0, 5) } : null,
+      airQuality: S.aqi || null,
+      calendar: (S.events || []).filter(function (e) { return e.end > now && e.start < soon; }).slice(0, 30).map(function (e) {
+        return { title: e.title, start: t(e.start), end: t(e.end), allDay: !!e.allDay, who: e.who || '' };
+      }),
+      reminders: S.phone && S.phone.reminders ? S.phone.reminders.slice(0, 15) : [],
+      commuteToOffice: S.route ? { minutes: S.route.minutes, usual: S.route.usual, km: S.route.km, via: S.route.desc, direction: S.route.toWork ? 'home to office' : 'office to home', checked: t(S.route.at) } : null,
+      onTheWayHome: S.papa ? { minutesToHome: S.papa.minutes, km: S.papa.km, via: S.papa.desc, seen: t(S.papa.fixAt || S.papa.at) } : null,
+      exchangeRates: S.fx ? { base: (C.fx || {}).base || 'AED', quote: (C.fx || {}).quote || 'INR', rate: S.fx.rate, usd: S.fx.usd, gold22kPerGram: S.fx.gold,
+        changeToday: { base: S.fx.change, usd: S.fx.usdChange, gold: S.fx.goldChange } } : null,
+      deliveries: S.inbox ? (S.inbox.deliveries || []) : [],
+      bills: S.inbox ? (S.inbox.bills || []) : [],
+      headlines: (S.news || []).slice(0, 8).map(function (n) { return n.title; }),
+      onScreenArt: (view.idle ? S.artIdle : S.artHome) ? (function (a) { return { title: a.title, by: a.artist, date: a.date, museum: a.museum, note: a.note }; })(view.idle ? S.artIdle : S.artHome) : null,
+      screens: eligibleCards(),
+      apps: C.apps.map(function (a) { return a.label; })
+    };
+    try { fetch(RELAY + '/context', { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(snap) }); } catch (e) { /* ignore */ }
+  }
+
+  function askChip(busy) {
+    var el = $('askchip');
+    if (!busy) { el.classList.add('hidden'); return; }
+    el.innerHTML = '<span class="askdot"></span>' + esc(C.assistantName ? C.assistantName + ' is thinking…' : 'Thinking…') + ' <q>' + esc(busy.q || '') + '</q>';
+    el.classList.remove('hidden');
+  }
+
+  function askActions(list) {
+    (list || []).forEach(function (a) {
+      try {
+        if (a.do === 'gallery') { view.manualGallery = true; enterIdle(); }
+        else if (a.do === 'home') { if (view.idle) exitIdle(); }
+        else if (a.do === 'play_jazz') playCalm(false, 'jazz');
+        else if (a.do === 'play_bhajans') playCalm(false, 'bhajans');
+        else if (a.do === 'stop_music') stopCalm();
+        else if (a.do === 'show_screen' && a.target) {
+          var tgt = String(a.target).toLowerCase(), map = { deliveries: 'orders', bills: 'orders', photos: 'memories', headlines: 'news', 'on the way home': 'papa' };
+          tgt = map[tgt] || tgt;
+          if (eligibleCards().indexOf(tgt) >= 0) { if (view.idle) exitIdle(); view.card = tgt; view.manualAt = Date.now(); drawCard(true); }
+        } else if (a.do === 'open_app' && a.target) {
+          var name = String(a.target).toLowerCase();
+          var app = C.apps.filter(function (x) { return x.label.toLowerCase() === name; })[0] ||
+            C.apps.filter(function (x) { return x.label.toLowerCase().indexOf(name) >= 0 || name.indexOf(x.label.toLowerCase()) >= 0; })[0];
+          if (app) setTimeout(function () { launchApp(app); }, 2500);   // let the card and voice start first
+        }
+      } catch (e) { console.warn('[ask action]', e.message); }
+    });
+  }
+
+  // Claude's answers are usually well-formed, but tidy up the odd variation before drawing.
+  function tidyAsk(r) {
+    var e = r.explainer;
+    if (e) {
+      var pages = e.pages || (e.points ? [e.points] : []);
+      var flat = [];
+      (pages || []).forEach(function (p) { if (typeof p === 'string') flat.push(p); else if (p && p.length) p.forEach(function (x) { if (x) flat.push(String(x)); }); });
+      e.pages = [];
+      for (var i = 0; i < flat.length && e.pages.length < 4; i += 3) e.pages.push(flat.slice(i, i + 3));
+    }
+    var t = r.trip;
+    if (t && t.days) t.days = t.days.filter(function (d) { return d && d.stops && d.stops.length; }).slice(0, 7);
+    var q = r.quiz;
+    if (q && q.questions) q.questions = q.questions.filter(function (x) {
+      return x && x.q && x.options && x.options.length === 4 && x.answer >= 0 && x.answer < 4;
+    }).slice(0, 15);
+    return r;
+  }
+
+  function tvlog(msg) { try { if (RELAY) fetch(RELAY + '/tvlog', { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: String(msg).slice(0, 2000) }); } catch (e) { /* ignore */ } }
+  window.addEventListener('error', function (e) { tvlog('JS error: ' + e.message + ' @' + (e.filename || '').split('/').pop() + ':' + e.lineno); });
+
+  function handleAsk(a) {
+    try { handleAskInner(a); } catch (e) {
+      tvlog('handleAsk failed (' + ((a.result || {}).kind) + '): ' + e.message + ' ' + (e.stack || '').slice(0, 600));
+      try { showAskCard(a, a.result || {}); } catch (e2) { /* ignore */ }
+    }
+  }
+  function handleAskInner(a) {
+    askChip(null);
+    var r = tidyAsk(a.result || {});
+    var kind = r.kind;
+    if (kind === 'trip' && !(r.trip && r.trip.days && r.trip.days.length)) kind = 'card';
+    if (kind === 'explainer' && !(r.explainer && r.explainer.pages && r.explainer.pages.length)) kind = 'card';
+    if (kind === 'quiz' && !(r.quiz && r.quiz.questions && r.quiz.questions.length)) kind = 'card';
+    if (kind === 'route' && !(r.route && r.route.destination && C.googleMapsKey)) kind = 'card';
+    askActions(r.actions);
+    if (kind === 'card') showAskCard(a, r);
+    else openAsk(kind, a, r);
+    tvlog('ask shown: ' + kind + ' (asked for ' + r.kind + ') · ' + (a.q || '').slice(0, 80));
+    if (r.speech) speak(r.speech, C.assistantVoice);
+  }
+
+  function showAskCard(a, r) {
+    var c = r.card || {}, el = $('askcard');
+    el.innerHTML = '<p class="ak">' + esc(C.assistantName ? 'Ask ' + C.assistantName : 'Ask the TV') + '<span>“' + esc(a.q || '') + '”</span></p>' +
+      '<p class="aans">' + esc(c.answer || r.speech || '') + '</p>' +
+      (c.detail ? '<p class="asub">' + esc(c.detail) + '</p>' : '') +
+      '<p class="ahint">Closes by itself · BACK to close now · Ask for “more detail” to open it full screen</p>';
+    el.classList.remove('hidden');
+    clearTimeout(A.cardTimer);
+    A.cardTimer = setTimeout(closeAskCard, 25000);
+  }
+  function closeAskCard() { clearTimeout(A.cardTimer); $('askcard').classList.add('hidden'); }
+
+  function openAsk(kind, a, r) {
+    closeAskCard();
+    A.open = true; A.kind = kind; A.q = a.q; A.who = a.who; A.data = r[kind]; A.page = 0; A.quiz = null; A.img = null;
+    if (kind === 'quiz') {
+      var players = (A.data.players || []).filter(Boolean);
+      A.quiz = { i: 0, focus: 0, players: players, turn: 0, scores: players.map(function () { return 0; }), total: 0, answered: -1, done: false };
+    }
+    if (kind === 'route') {
+      A.route = null; A.routeErr = false;
+      Sources.commuteDetail(C.commute.origin, A.data.destination, true).then(function (rt) {
+        if (A.open && A.kind === 'route') { A.route = rt; A.routeErr = !rt; drawAsk(); }
+      }).catch(function () { if (A.open && A.kind === 'route') { A.routeErr = true; drawAsk(); } });
+    }
+    if (kind === 'explainer' && A.data.image_query) {
+      var want = A.data.image_query;
+      U.json('https://openaccess-api.clevelandart.org/api/artworks/?cc0=1&has_image=1&limit=8&q=' + encodeURIComponent(want))
+        .then(function (d) {
+          var hit = (d.data || []).filter(function (x) { return x.images && x.images.web && x.images.web.width >= 700; })[0];
+          if (hit && A.open && A.kind === 'explainer') { A.img = { src: hit.images.web.url, credit: hit.title + ', ' + ((hit.creators && hit.creators[0] && hit.creators[0].description) || 'Cleveland Museum of Art').replace(/\s*\(.*$/, '') }; drawAsk(); }
+        }).catch(function () { /* no picture is fine */ });
+    }
+    $('ask').classList.remove('hidden');
+    drawAsk();
+  }
+  function closeAsk() { A.open = false; $('ask').classList.add('hidden'); $('ask').innerHTML = ''; }
+
+  function tripMapUrl(stops) {
+    var pts = (stops || []).filter(function (s) { return typeof s.lat === 'number' && typeof s.lng === 'number'; });
+    if (!C.googleMapsKey || !pts.length) return '';
+    var st = ['element:geometry|color:0x1d2330', 'element:labels.text.fill|color:0x9aa3b2', 'element:labels.text.stroke|color:0x12151c',
+      'feature:water|element:geometry|color:0x0e2233', 'feature:road|element:geometry|color:0x2b3342', 'feature:poi|visibility:off'];
+    var q = ['size=640x440', 'scale=2', 'key=' + encodeURIComponent(C.googleMapsKey)];
+    st.forEach(function (x) { q.push('style=' + encodeURIComponent(x)); });
+    pts.forEach(function (p, i) { q.push('markers=' + encodeURIComponent('color:0xF2B36B|label:' + (i + 1) + '|' + p.lat + ',' + p.lng)); });
+    return 'https://maps.googleapis.com/maps/api/staticmap?' + q.join('&');
+  }
+
+  function askTop(right) {
+    var n = new Date(), h = n.getHours() % 12 || 12;
+    return '<div class="atop"><p class="at">' + h + ':' + U.pad(n.getMinutes()) + '<small>' + (n.getHours() < 12 ? 'AM' : 'PM') + '</small></p><div class="ar">' + right + '</div></div>';
+  }
+  function askBottom(parts) { return '<div class="abottom">' + parts.map(function (p) { return '<span>' + p + '</span>'; }).join('') + '</div>'; }
+
+  function drawAsk() {
+    var el = $('ask'), d = A.data, html = '', asked = '“' + esc(A.q || '') + '”' + (A.who ? ' · ' + esc(A.who) : '');
+    if (A.kind === 'route') {
+      var rt = A.route, name = d.label || d.destination;
+      function rrow(k, v) { return '<div class="arow"><span>' + k + '</span><b>' + v + '</b></div>'; }
+      html = askTop(asked) + '<div class="aroute"><div class="armap">' + (rt && rt.mapUrl ? '<img src="' + esc(rt.mapUrl) + '" alt="">' : '<p class="await">' + (A.routeErr ? 'Couldn\'t find a route there.' : 'Checking live traffic…') + '</p>') + '</div>' +
+        '<div class="arinfo"><p class="ak">Route · from home</p><p class="attl">' + esc(name) + '</p>' +
+        (rt ? '<p class="armin">' + rt.minutes + '<span>min</span>' + (rt.usual && rt.minutes - rt.usual >= 5 ? '<em>+' + (rt.minutes - rt.usual) + ' min traffic</em>' : '') + '</p>' +
+          (rt.desc ? '<p class="arvia">via ' + esc(rt.desc) + '</p>' : '') +
+          '<div class="arows">' + rrow('Arrive if you leave now', U.time12(new Date(Date.now() + rt.minutes * 60000))) + (rt.usual ? rrow('Usually', rt.usual + ' min') : '') + rrow('Distance', rt.km + ' km') + '</div>' : '') +
+        '</div></div>' + askBottom(['', 'Live traffic from Google', '<b>BACK</b> close']);
+    } else if (A.kind === 'trip') {
+      var days = d.days, day = days[A.page] || days[0], map = tripMapUrl(day.stops);
+      html = askTop(asked) + '<div class="atrip"><div class="al"><p class="ak">Trip plan</p><p class="attl">' + esc(d.title) + '</p>' +
+        (d.meta ? '<p class="ameta">' + esc(d.meta) + '</p>' : '') +
+        (map ? '<div class="amap"><img src="' + esc(map) + '" alt=""></div>' : '') + '</div>' +
+        '<div class="arr"><div class="atabs">' + days.map(function (x, i) { return '<span class="atab' + (i === A.page ? ' on' : '') + '">' + esc(x.label || 'Day ' + (i + 1)) + '</span>'; }).join('') + '</div>' +
+        '<p class="aday">' + esc(day.title || '') + '</p><div class="astops">' + day.stops.map(function (s, i) {
+          return '<div class="astop"><p class="atm">' + esc(s.time || '') + '</p><div><p class="anm"><span class="an">' + (i + 1) + '</span>' + esc(s.name) + '</p><p class="ads">' + esc(s.desc || '') + '</p></div></div>';
+        }).join('') + '</div></div></div>' +
+        askBottom(['<b>◀ ▶</b> change day', 'A copy is on your phone', '<b>BACK</b> close']);
+    } else if (A.kind === 'explainer') {
+      var pages = d.pages, pg = pages[A.page] || pages[0];
+      html = askTop(asked) + '<div class="aexp' + (A.img ? '' : ' noimg') + '">' + (A.img ? '<div class="aimg"><img src="' + esc(A.img.src) + '" alt=""></div>' : '') +
+        '<div><p class="ak">' + esc(C.assistantName || 'Ask the TV') + (d.audience ? ' · ' + esc(d.audience) : '') + '</p><p class="attl">' + esc(d.title) + '</p>' +
+        pg.map(function (p, i) { return '<div class="apt"><span class="anum">' + (A.page * 3 + i + 1) + '</span><p>' + esc(p) + '</p></div>'; }).join('') +
+        (pages.length > 1 ? '<div class="adots">' + pages.map(function (x, i) { return '<i' + (i === A.page ? ' class="on"' : '') + '></i>'; }).join('') + '</div>' : '') +
+        '</div></div>' + askBottom([pages.length > 1 ? '<b>◀ ▶</b> more' : '', A.img ? 'Picture: ' + esc(A.img.credit) : '', '<b>BACK</b> close']);
+    } else if (A.kind === 'quiz') {
+      var Q = A.quiz, qs = d.questions;
+      var score = Q.players.length ? Q.players.map(function (p, i) { return '<span' + (!Q.done && i === Q.turn ? ' class="turn"' : '') + '>' + esc(p) + '<b>' + Q.scores[i] + '</b></span>'; }).join('') : '<span>Score<b>' + Q.total + ' / ' + qs.length + '</b></span>';
+      if (Q.done) {
+        var best = Q.players.length ? Math.max.apply(null, Q.scores) : Q.total;
+        var winners = Q.players.filter(function (p, i) { return Q.scores[i] === best; });
+        html = askTop('<div class="ascore">' + score + '</div>') + '<div class="aquiz"><p class="ak">' + esc(d.topic) + ' · finished</p>' +
+          '<p class="aqq small">' + (Q.players.length ? (winners.length > 1 ? 'It\'s a tie!' : esc(winners[0]) + ' wins!') : 'You got ' + Q.total + ' out of ' + qs.length + '!') + '</p></div>' +
+          askBottom(['', '<b>OK</b> or <b>BACK</b> close', '']);
+      } else {
+        var q = qs[Q.i];
+        html = askTop('<div class="ascore">' + score + '</div>') + '<div class="aquiz"><p class="ak">Quiz · ' + esc(d.topic) + ' · question ' + (Q.i + 1) + ' of ' + qs.length + '</p>' +
+          '<p class="aqq' + (q.q.length > 40 ? ' small' : '') + '">' + esc(q.q) + '</p><div class="aopts">' + q.options.map(function (o, i) {
+            var cls = 'aopt';
+            if (Q.answered >= 0) { if (i === q.answer) cls += ' right'; else if (i === Q.answered) cls += ' wrong'; }
+            else if (i === Q.focus) cls += ' f';
+            return '<div class="' + cls + '"><i>' + 'ABCD'[i] + '</i>' + esc(o) + '</div>';
+          }).join('') + '</div></div>' +
+          askBottom(['<b>Arrows</b> choose', '<b>OK</b> answer' + (Q.players.length ? ' · ' + esc(Q.players[Q.turn]) + '\'s turn' : ''), '<b>BACK</b> stop the quiz']);
+      }
+    }
+    el.innerHTML = html;
+  }
+
+  function askKey(code) {
+    if (code === KEY.BACK || code === KEY.ESC) { closeAsk(); stopSpeech(); return; }
+    if (A.kind === 'route') return;
+    if (A.kind === 'trip' || A.kind === 'explainer') {
+      var n = A.kind === 'trip' ? A.data.days.length : A.data.pages.length;
+      if (code === KEY.RIGHT || code === KEY.DOWN || code === KEY.ENTER) A.page = Math.min(n - 1, A.page + 1);
+      else if (code === KEY.LEFT || code === KEY.UP) A.page = Math.max(0, A.page - 1);
+      drawAsk();
+      return;
+    }
+    if (A.kind === 'quiz') {
+      var Q = A.quiz, q = A.data.questions[Q.i];
+      if (Q.done) { if (code === KEY.ENTER) closeAsk(); return; }
+      if (Q.answered >= 0) return;                                   // waiting for the next question
+      if (code === KEY.LEFT) Q.focus = Q.focus % 2 ? Q.focus - 1 : Q.focus;
+      else if (code === KEY.RIGHT) Q.focus = Q.focus % 2 ? Q.focus : Q.focus + 1;
+      else if (code === KEY.UP) Q.focus = Q.focus >= 2 ? Q.focus - 2 : Q.focus;
+      else if (code === KEY.DOWN) Q.focus = Q.focus < 2 ? Q.focus + 2 : Q.focus;
+      else if (code === KEY.ENTER) {
+        Q.answered = Q.focus;
+        var ok = Q.focus === q.answer;
+        if (ok) { if (Q.players.length) Q.scores[Q.turn]++; else Q.total++; }
+        speak(ok ? 'Correct!' : 'Not quite. It\'s ' + q.options[q.answer] + '.', C.assistantVoice);
+        setTimeout(function () {
+          if (!A.open || A.kind !== 'quiz') return;
+          Q.answered = -1; Q.focus = 0;
+          if (Q.players.length) Q.turn = (Q.turn + 1) % Q.players.length;
+          if (Q.i + 1 >= A.data.questions.length) {
+            Q.done = true;
+            var best = Q.players.length ? Math.max.apply(null, Q.scores) : Q.total;
+            var winners = Q.players.filter(function (p, i) { return Q.scores[i] === best; });
+            speak(Q.players.length ? (winners.length > 1 ? 'It\'s a tie! Well played.' : winners[0] + ' wins! Well played.') : 'You got ' + Q.total + ' out of ' + A.data.questions.length + '.', C.assistantVoice);
+          } else Q.i++;
+          drawAsk();
+        }, 2600);
+      }
+      drawAsk();
+    }
+  }
+
   // ---------- Meeting reminder (the laptop brings the app to the front over Netflix etc.) ----------
   function closeOverlay() { var ov = $('overlay'); ov.classList.add('hidden'); ov.classList.remove('remind'); ov.dataset.kind = ''; clearTimeout(closeOverlay.t); }
   function showMeetingReminder(r) {
@@ -792,11 +1044,11 @@
   function firstSentence(t) { var m = String(t || '').match(/^.*?[.!?](\s|$)/); return (m ? m[0] : String(t || '')).trim().slice(0, 220); }
 
   // Speak through the home-server relay (natural voice). Resolves when finished, or on any error.
-  function speak(text) {
+  function speak(text, voice) {
     stopSpeech();
     return new Promise(function (resolve) {
       if (!RELAY || !text) { resolve(); return; }
-      var a = new Audio(RELAY + '/tts?voice=' + encodeURIComponent((C.greetings && C.greetings.voice) || '') + '&text=' + encodeURIComponent(text));
+      var a = new Audio(RELAY + '/tts?voice=' + encodeURIComponent(voice || (C.greetings && C.greetings.voice) || '') + '&text=' + encodeURIComponent(text));
       G.audio = a;
       var finished = false;
       var done = function () { if (finished) return; finished = true; clearTimeout(t1); clearTimeout(t2); if (G.audio === a) G.audio = null; resolve(); };
@@ -941,8 +1193,9 @@
     var bh = g.bhajanUrls && m >= minsToday(g.bhajanFrom || '05:30') && m < minsToday(g.bhajanUntil || '07:00');
     return bh ? { label: 'Bhajans', urls: g.bhajanUrls } : { label: 'Instrumental jazz', urls: g.jazzUrls || [] };
   }
-  function playCalm(auto) {
-    var g = C.greetings, pick0 = musicChoice(), urls = pick0.urls;
+  function playCalm(auto, kind) {
+    var g = C.greetings, pick0 = kind === 'jazz' ? { label: 'Instrumental jazz', urls: g.jazzUrls || [] } :
+      kind === 'bhajans' && g.bhajanUrls ? { label: 'Bhajans', urls: g.bhajanUrls } : musicChoice(), urls = pick0.urls;
     stopCalm();
     var i = 0;
     (function tryNext() {
@@ -994,6 +1247,8 @@
         else if (st.cmd.do === 'home') exitIdle();
         else if (st.cmd.do === 'music') playCalm();
       }
+      askChip(st.askBusy);
+      if (st.ask && st.ask.id > U.store.get('ask_last', 0) && Date.now() / 1000 - st.ask.id < 180) { U.store.set('ask_last', st.ask.id); handleAsk(st.ask); }
       if (st.remind && st.remind.t > U.store.get('remind_last', 0)) {   // a meeting is about to start
         U.store.set('remind_last', st.remind.t);
         showMeetingReminder(st.remind);
@@ -1032,6 +1287,8 @@
     var code = e.keyCode;
     view.lastInput = Date.now();
     if (G.active) { e.preventDefault(); greetKey(code); return; }
+    if (A.open) { e.preventDefault(); askKey(code); return; }
+    if (!$('askcard').classList.contains('hidden') && (code === KEY.BACK || code === KEY.ESC || code === KEY.ENTER)) { e.preventDefault(); closeAskCard(); stopSpeech(); return; }
     view.tour = false;
     if (G.music && (MEDIA[code] === 'ColorF0Red' || /Play|Pause/.test(MEDIA[code] || ''))) { e.preventDefault(); stopCalm(); toast('Music stopped'); return; }
     if (view.idle) {
@@ -1149,6 +1406,7 @@
     reg('art-home', C.homeArtMinutes * MIN, loadHomeArt);
     reg('art-idle', C.idleArtMinutes * MIN, function () { return view.idle ? loadIdleArt() : null; });
     reg('photo', 4 * MIN, loadFramePhoto);
+    reg('context', 2 * MIN, postContext);
 
     if (DEMO) {
       var d = Sources.demo();
@@ -1287,7 +1545,7 @@
     if (forceCard) setTimeout(function () { view.card = forceCard[1]; view.manualAt = Date.now() + 3600000; drawCard(true); }, 4000);
     if (DEMO) toast('Demo mode — sample data');
     setTimeout(checkGreet, 4000);
-    setInterval(checkGreet, 10000);
+    setInterval(checkGreet, 2500);          // also picks up Ask the TV answers quickly
     document.addEventListener('visibilitychange', function () {
       if (document.hidden) { stopSpeech(); stopCalm(); } else setTimeout(checkGreet, 1500);
     });

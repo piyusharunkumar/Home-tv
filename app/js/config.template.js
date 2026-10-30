@@ -51,6 +51,11 @@ window.CONFIG = {
   posterEvery: 5,             // one poster for every N gallery pictures
   galleryCarouselSeconds: 60, // Gallery tile: seconds per picture
 
+  // ---------- Ask the TV (optional, see README) ----------
+  // A name for the TV's voice assistant ("Hey Sam") and the voice it answers in.
+  assistantName: "",
+  assistantVoice: "en-GB-MaisieNeural",  // a young girl's voice; en-US-AnaNeural is another
+
   // ---------- Family photos (optional, needs extras/photo-frame) ----------
   // A "Memories" screen in the rotation, and one family photo every N gallery pictures.
   photoFrame: false,

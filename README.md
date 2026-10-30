@@ -31,6 +31,15 @@ Turn a Samsung TV that sits dark most of the week into a calm family dashboard a
 
 Everything you enter (city, calendar links, keys) stays in `C:\HomeTV` on your own laptop.
 
+## Ask the TV (optional)
+
+Talk to the TV through your iPhone: "Hey Sam, plan a weekend in Salalah for the four of us" or "quiz the kids on times tables". Claude answers on the TV, as a short card or a full screen (trip plans with a map, explainers, routes with live traffic, quizzes played with the remote), and reads the answer aloud.
+
+1. Get a Claude API key at console.anthropic.com and add a little credit (it's pay-as-you-go; a family's questions usually cost a few dollars a month).
+2. Copy `server/ask-secret.example.json` to `C:\HomeTV\server\data\ask-secret.json` and fill it in. It stays on your laptop.
+3. On your iPhone, make a Shortcut called **Ask the TV**: **Dictate Text** → **Get Contents of URL** (`http://<laptop IP>:8080/ask`, POST, JSON body with `key` = your push key, `who` = your name, `q` = Dictated Text) → **Show Notification** (Contents of URL).
+4. Optional: Settings → Accessibility → **Vocal Shortcuts** to start it with a phrase like "Hey Sam", or Back Tap.
+
 ## Optional extras
 
 The `extras` folder has three add-ons that need a bit more comfort with the command line: an "on the way home" map using Find My, deliveries and bills read from Gmail, and a family photo frame from a folder of your photos. See [extras/README.md](extras/README.md).

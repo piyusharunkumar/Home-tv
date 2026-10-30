@@ -1114,7 +1114,7 @@
     stopSpeech();
     return new Promise(function (resolve) {
       if (!RELAY || !text) { resolve(); return; }
-      var a = new Audio(RELAY + '/tts?voice=' + encodeURIComponent(voice || (C.greetings && C.greetings.voice) || '') + '&text=' + encodeURIComponent(text));
+      var a = new Audio(RELAY + '/tts?voice=' + encodeURIComponent(voice || C.assistantVoice || (C.greetings && C.greetings.voice) || '') + '&text=' + encodeURIComponent(text));
       G.audio = a;
       var finished = false;
       var done = function () { if (finished) return; finished = true; clearTimeout(t1); clearTimeout(t2); if (G.audio === a) G.audio = null; resolve(); };

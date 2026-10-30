@@ -1241,7 +1241,7 @@
     var on = null, part = '', arrive = 0;
     try {
       var st = await U.json(RELAY + '/state'); on = st.powerOn || 0; part = st.part || ''; arrive = st.arriveAt || 0;
-      if (st.cmd && st.cmd.t > U.store.get('cmd_last', 0)) {          // a command sent from the laptop
+      if (st.cmd && st.cmd.t > U.store.get('cmd_last', 0) && Date.now() / 1000 - st.cmd.t < 120) {   // a command sent from the laptop (recent only)
         U.store.set('cmd_last', st.cmd.t);
         if (st.cmd.do === 'gallery') { view.manualGallery = true; enterIdle(); }
         else if (st.cmd.do === 'home') exitIdle();
@@ -1255,14 +1255,15 @@
       }
     } catch (e) { on = null; }
     var nowS = Date.now() / 1000, freshArrive = arrive && nowS - arrive < 10 * 60 && arrive > U.store.get('arrive_last', 0);
-    if (on === null) {                       // relay unreachable: greet once when the app starts
-      if (greetBoot) { greetBoot = false; greetNow(); }
-      return;
-    }
+    if (on === null) return;                 // relay unreachable: stay quiet rather than greet at a random moment
     greetBoot = false;
     if (on > U.store.get('greet_last', 0)) {
       U.store.set('greet_last', on);
-      if (freshArrive && !part) { U.store.set('arrive_last', arrive); runWelcome(); } else greetNow(part);
+      // Only greet for a switch-on that just happened. After an app update or restart the relay still
+      // remembers this morning's switch-on, and greeting for that would be a "good morning" out of nowhere.
+      if (nowS - on < 180) {
+        if (freshArrive && !part) { U.store.set('arrive_last', arrive); runWelcome(); } else greetNow(part);
+      } else if (freshArrive) { U.store.set('arrive_last', arrive); runWelcome(); }
     } else if (freshArrive) { U.store.set('arrive_last', arrive); runWelcome(); }   // TV was already on
   }
 

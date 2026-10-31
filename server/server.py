@@ -155,6 +155,7 @@ def read_pushed():
 # answer is kept here; the TV picks it up through /state and shows it as a card or a full screen.
 ASK_STATE = {"busy": None, "last": None, "context": {}, "context_at": 0}
 ASK_HISTORY = {}          # who -> [(t, role, text)] for follow-up questions (15 minutes)
+WAKE_REQ = {"t": 0}      # Sam was asked to switch the TV on; the laptop picks this up within a minute
 ASK_MODEL = os.environ.get("ASK_MODEL", "claude-haiku-5-5")
 try:
     with open(os.path.join(os.environ.get("PUSH_DIR", "/data"), "context.json"), encoding="utf-8") as _fh:
@@ -276,7 +277,7 @@ RESPOND_TOOL = {
                 "autoplay": {"type": "boolean", "description": "true when they asked to play one specific thing (a named song or video); false when they want to browse"}},
                 "required": ["query"]},
             "actions": {"type": "array", "items": {"type": "object", "properties": {
-                "do": {"type": "string", "enum": ["gallery", "home", "play_jazz", "play_bhajans", "stop_music", "show_screen", "open_app"]},
+                "do": {"type": "string", "enum": ["gallery", "home", "play_jazz", "play_bhajans", "stop_music", "show_screen", "open_app", "tv_on"]},
                 "target": {"type": "string", "description": "screen name (commute, calendar, weather, orders, memories, news) or app name"}},
                 "required": ["do"]}},
             "phone_text": {"type": "string", "description": "Plain-text copy for the phone. For trips include the whole plan; otherwise repeat the answer briefly."},
@@ -290,15 +291,11 @@ def ask_system(who):
     cfg = ask_settings()
     ctx = ASK_STATE["context"] or {}
     age = int(time.time() - ASK_STATE["context_at"]) if ASK_STATE["context_at"] else None
-    return (
+    rules = (
         "You are " + cfg.get("name", "the TV") + ", the voice of a family's living-room TV dashboard (the family says "
         "'Hey " + cfg.get("name", "TV") + "' to ask you things). You answer questions spoken to an iPhone, "
         "and your answer appears on the big TV screen and is read aloud. If it fits naturally, you can refer to yourself by name.\n"
-        "Household: " + cfg.get("family", "a family") + ". Home: " + cfg.get("home", cfg.get("city", "Dubai")) + ".\n"
-        "The person asking now: " + (who or "someone at home") + ".\n"
-        "Right now it is " + time.strftime("%A %d %B %Y, %H:%M") + " local time.\n"
-        "What the dashboard knows" + (" (updated %d s ago)" % age if age is not None else "") + ":\n"
-        + json.dumps(ctx, ensure_ascii=False)[:12000] + "\n\n"
+        "Household: " + cfg.get("family", "a family") + ". Home: " + cfg.get("home", cfg.get("city", "Dubai")) + ".\n\n"
         "Rules:\n"
         "- Always finish by calling the respond tool once. Use kind=card only for one-line answers and confirmations. "
         "Use route for directions or 'how long to get to X' (the TV draws a live traffic map from home). "
@@ -313,7 +310,7 @@ def ask_system(who):
         "Don't ask a follow-up every single time, and never for simple confirmations.\n"
         "- The on-screen card answer can be conversational too, but keep it under 18 words.\n"
         "- Follow-ups come as a new question a moment later ('yes please', 'make it shorter'); use the earlier turns to understand them.\n"
-        "- Never guess facts. Weather, times and numbers come from the dashboard data above or from a web search, nothing else.\n"
+        "- Never guess facts. Weather, times and numbers come from the dashboard data (given after these rules) or from a web search, nothing else.\n"
         "- Use web search for anything current (prices, opening hours, events, weather beyond the dashboard, news). "
         "Don't search for things the dashboard already knows.\n"
         "- Family members' whereabouts: give only an ETA or 'on the way home' / 'at home', never an address or coordinates.\n"
@@ -326,8 +323,19 @@ def ask_system(who):
         "- Videos: for anything to watch or listen to (a song, 'play X', recipes, tutorials, workouts, cartoons) use kind=videos with a "
         "good YouTube search query; the TV finds the videos itself, so don't web search for them. Spotify isn't connected, so 'play X on "
         "Spotify' also becomes videos (say you're playing it from YouTube). Keep queries family-friendly. Don't add an open_app action for videos: the TV shows the picker and opens YouTube itself.\n"
+        "- Turning the TV on: when asked to switch/turn the TV on, add the action tv_on and say it'll be on in about a minute. "
+        "If the TV seems to be off (the dashboard hasn't checked in for more than 5 minutes) and they ask for something to see on it, "
+        "add tv_on as well and mention you're switching it on. You can't switch the TV off; say they can use the remote.\n"
         "- Actions: use them when asked to show the gallery, go home, play or stop music, show a screen or open an app.\n"
     )
+    now = (
+        "The person asking now: " + (who or "someone at home") + ".\n"
+        "Right now it is " + time.strftime("%A %d %B %Y, %H:%M") + " local time.\n"
+        "What the dashboard knows" + (" (updated %d s ago)" % age if age is not None else "") + ":\n"
+        + json.dumps(ctx, ensure_ascii=False)[:12000]
+    )
+    # The rules never change, so Claude can reuse them from its cache (about a tenth of the price) between questions.
+    return [{"type": "text", "text": rules, "cache_control": {"type": "ephemeral"}}, {"type": "text", "text": now}]
 
 
 def ask_claude(who, question):
@@ -339,7 +347,7 @@ def ask_claude(who, question):
     hist = [h for h in ASK_HISTORY.get(who, []) if now - h[0] < 15 * 60][-6:]
     msgs = [{"role": r, "content": t} for _, r, t in hist]
     msgs.append({"role": "user", "content": question})
-    tools = [{"type": "web_search_20250305", "name": "web_search", "max_uses": 3}, RESPOND_TOOL]
+    tools = [{"type": "web_search_20250305", "name": "web_search", "max_uses": 1}, RESPOND_TOOL]
     for _ in range(4):
         body = json.dumps({"model": cfg.get("model", ASK_MODEL), "max_tokens": 6000, "system": ask_system(who),
                            "tools": tools, "messages": msgs}).encode()
@@ -389,6 +397,8 @@ def handle_ask(who, question):
         if not v["items"]:
             res = {"kind": "card", "speech": "Sorry, I couldn't reach YouTube just now. Try again in a minute?",
                    "card": {"answer": "Couldn't reach YouTube just now"}, "phone_text": "Couldn't reach YouTube just now."}
+    if any((a or {}).get("do") == "tv_on" for a in (res.get("actions") or [])):
+        WAKE_REQ["t"] = time.time()
     ASK_STATE["busy"] = None
     ASK_STATE["last"] = {"id": time.time(), "q": question[:200], "who": who, "result": res}
     try:
@@ -485,6 +495,10 @@ class Handler(BaseHTTPRequestHandler):
             CMD["do"] = urllib.parse.parse_qs(parts.query).get("do", [""])[0][:12]
             CMD["t"] = int(time.time())
             return self._send(200, b'{"ok": true}', "application/json")
+        if parts.path == "/wake/claim":               # asked every 15 s by the laptop's wake task
+            want = WAKE_REQ["t"] and time.time() - WAKE_REQ["t"] < 180
+            WAKE_REQ["t"] = 0
+            return self._send(200, json.dumps({"wake": bool(want)}).encode(), "application/json")
         if parts.path == "/ytplay":                    # TV asks: open this YouTube video (LAN only)
             vid = urllib.parse.parse_qs(parts.query).get("v", [""])[0][:11]
             ok, info = youtube_play(vid)

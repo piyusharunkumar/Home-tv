@@ -106,7 +106,8 @@ if ($mode -eq '1' -or -not $S.tvIp) {
   if (-not $S.voice) { $S.voice = 'en-IN-NeerjaNeural' }
   $S.devotional = YesNo 'Play devotional music (bhajans) for an early-morning switch-on? Otherwise instrumental jazz' $(if ($S.devotional -eq $false) { 'n' } else { 'y' })
   $S.morningWake = Ask 'Switch the TV on by itself on workdays at (HH:MM, or "off")' $(if ($S.morningWake) { $S.morningWake } else { '06:30' })
-  $S.eveningWake = Ask 'Switch the TV on by itself every evening at (HH:MM, or "off")' $(if ($S.eveningWake) { $S.eveningWake } else { '19:00' })
+  $S.weekendWake = Ask 'Switch the TV on by itself on weekend mornings at (HH:MM, or "off")' $(if ($S.weekendWake) { $S.weekendWake } else { '09:00' })
+  $S.eveningWake = Ask 'Switch the TV on by itself on workday evenings at (HH:MM, or "off")' $(if ($S.eveningWake) { $S.eveningWake } else { '19:00' })
 
   Say 'Optional extras - press Enter to skip any of them' 'Gray'
   $cals = @(); if ($S.calendars) { $cals = @($S.calendars) }
@@ -191,7 +192,8 @@ $workdays = @('Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 Unregister-ScheduledTask -TaskName 'Home TV - morning' -Confirm:$false -ErrorAction SilentlyContinue
 Unregister-ScheduledTask -TaskName 'Home TV - evening' -Confirm:$false -ErrorAction SilentlyContinue
 if ($S.morningWake -match '^\d{1,2}:\d{2}$') { Register-ScheduledTask -TaskName 'Home TV - morning' -Action (PS-Action 'wake-tv.ps1' '-Mode morning') -Trigger (New-ScheduledTaskTrigger -Weekly -DaysOfWeek $workdays -At $S.morningWake) -Settings $set -Principal $pr -Force | Out-Null; Write-Host "  Workdays at $($S.morningWake)" }
-if ($S.eveningWake -match '^\d{1,2}:\d{2}$') { Register-ScheduledTask -TaskName 'Home TV - evening' -Action (PS-Action 'wake-tv.ps1' '-Mode evening') -Trigger (New-ScheduledTaskTrigger -Daily -At $S.eveningWake) -Settings $set -Principal $pr -Force | Out-Null; Write-Host "  Every day at $($S.eveningWake)" }
+if ($S.weekendWake -match '^\d{1,2}:\d{2}$') { Register-ScheduledTask -TaskName 'Home TV - weekend morning' -Action (PS-Action 'wake-tv.ps1' '-Mode morning') -Trigger (New-ScheduledTaskTrigger -Weekly -DaysOfWeek Saturday,Sunday -At $S.weekendWake) -Settings $set -Principal $pr -Force | Out-Null; Write-Host "  Weekends at $($S.weekendWake)" }
+if ($S.eveningWake -match '^\d{1,2}:\d{2}$') { Register-ScheduledTask -TaskName 'Home TV - evening' -Action (PS-Action 'wake-tv.ps1' '-Mode evening') -Trigger (New-ScheduledTaskTrigger -Weekly -DaysOfWeek $workdays -At $S.eveningWake) -Settings $set -Principal $pr -Force | Out-Null; Write-Host "  Workday evenings at $($S.eveningWake)" }
 Register-ScheduledTask -TaskName 'Home TV - health check' -Action (PS-Action 'tv-health.ps1' '') -Trigger (New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(5) -RepetitionInterval (New-TimeSpan -Minutes 30)) -Settings $set -Principal $pr -Force | Out-Null
 Write-Host '  TV setting needed for this: Settings > General > Network > Expert Settings > Power On with Mobile = ON' -ForegroundColor Yellow
 

@@ -89,8 +89,16 @@ window.Sources = (function () {
     var d = await U.json('https://open.er-api.com/v6/latest/' + base);
     var aed = d.rates[quote];
     var usd = d.rates.USD ? d.rates[quote] / d.rates.USD : null;
-    var gold = null;
-    try {
+    var gold = null, dubai = null;
+    // Gold: the Dubai retail rate jewellers charge (via the laptop), when the base currency is AED.
+    if (base === 'AED' && C.corsProxy) {
+      try {
+        var dg = await U.json(C.corsProxy.replace(/\/proxy\?url=$/, '') + '/gold');
+        if (dg && dg.k22) dubai = dg;
+      } catch (e) { console.warn('[gold dubai]', e.message); }
+    }
+    if (dubai) gold = dubai.k22;
+    else try {
       var g = await U.json('https://api.gold-api.com/price/XAU');               // USD per troy ounce, spot
       var usdToBase = d.rates.USD ? 1 / d.rates.USD : 1;
       if (g && g.price) gold = g.price / 31.1034768 * (22 / 24) * usdToBase;   // 22 karat, per gram, in the base currency
@@ -119,7 +127,8 @@ window.Sources = (function () {
       }
     } catch (e) { console.warn('[fx history]', e.message); }
     // Gold: today's move from the market's own daily change (COMEX gold futures), via the laptop relay.
-    if (gold != null) {
+    if (dubai) out.goldChange = dubai.change;            // change from the previous day's Dubai rate
+    else if (gold != null) {
       try {
         var y = await U.json('https://query1.finance.yahoo.com/v8/finance/chart/GC=F?range=5d&interval=1d', null, true);
         var meta = y && y.chart && y.chart.result && y.chart.result[0] && y.chart.result[0].meta;
@@ -280,7 +289,7 @@ window.Sources = (function () {
     return out;
   }
 
-  // ---------------- Where is the commuter (Find My → laptop → here; optional) ----------------
+  // ---------------- Where is Piyush (Find My → laptop → here) ----------------
   function metres(a, b, c, d) {
     var R = 6371000, toR = Math.PI / 180, x = (d - b) * toR * Math.cos((a + c) / 2 * toR), y = (c - a) * toR;
     return Math.sqrt(x * x + y * y) * R;
@@ -645,7 +654,7 @@ window.Sources = (function () {
       ],
       music: {
         playing: true, title: 'Sample Song', artist: 'Sample Artist', album: 'Sample Album', image: '',
-        progress: 84000, duration: 211000, device: "Living room", fetchedAt: Date.now()
+        progress: 84000, duration: 211000, device: "Piyush's iPhone", fetchedAt: Date.now()
       },
       cricket: {
         live: {

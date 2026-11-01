@@ -5,7 +5,7 @@ Google Sheet) that refuse cross-site requests from a TV app. The TV asks this
 relay instead:  GET /proxy?url=<encoded https URL>
 Only hosts in ALLOWED_HOSTS are fetched; responses are cached briefly.
 """
-import asyncio, hashlib, json, os, time, threading, urllib.error, urllib.parse, urllib.request
+import asyncio, hashlib, json, os, re, time, threading, urllib.error, urllib.parse, urllib.request
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 ALLOWED_HOSTS = {h.strip().lower() for h in os.environ.get(
@@ -80,6 +80,45 @@ def fetch(url):
             for k, _ in sorted(_cache.items(), key=lambda kv: kv[1][0])[:50]:
                 _cache.pop(k, None)
     return body, ctype
+
+
+# ---- Dubai retail gold rate (what jewellers in Dubai charge, set each morning) ----
+GOLD = {"t": 0, "data": None}
+GOLD_URL = os.environ.get("GOLD_URL", "https://dubaicityofgold.com/")
+
+
+def dubai_gold():
+    if GOLD["data"] and time.time() - GOLD["t"] < 900:
+        return GOLD["data"]
+    req = urllib.request.Request(GOLD_URL, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"})
+    with urllib.request.urlopen(req, timeout=15) as r:
+        html = r.read(3 * 1024 * 1024).decode("utf-8", "replace")
+    rates = {}
+    for k, v in re.findall(r'gold-type">\s*(\d{2})K Gold\s*</span>\s*<span[^>]*gold-value">\s*AED\s*([\d.,]+)', html):
+        rates[k] = float(v.replace(",", ""))
+    if "22" not in rates:
+        raise ValueError("22K rate not found on the page")
+    # remember one value per day so the TV can show the change from the previous day's rate
+    hf = os.path.join(PUSH_DIR, "gold-history.json")
+    try:
+        with open(hf, encoding="utf-8") as fh:
+            hist = json.load(fh)
+    except Exception:  # noqa: BLE001
+        hist = {}
+    today = time.strftime("%Y-%m-%d")
+    hist[today] = rates["22"]
+    for k in sorted(hist)[:-14]:
+        hist.pop(k, None)
+    try:
+        with open(hf, "w", encoding="utf-8") as fh:
+            json.dump(hist, fh)
+    except Exception:  # noqa: BLE001
+        pass
+    prev = [hist[k] for k in sorted(hist) if k < today]
+    data = {"k22": rates["22"], "k24": rates.get("24"), "k21": rates.get("21"),
+            "change": round(rates["22"] - prev[-1], 2) if prev else None, "at": int(time.time())}
+    GOLD.update(t=time.time(), data=data)
+    return data
 
 
 # ---- iPhone push (/push from an iOS Shortcut, /pushed read by the TV) ----
@@ -495,6 +534,11 @@ class Handler(BaseHTTPRequestHandler):
             CMD["do"] = urllib.parse.parse_qs(parts.query).get("do", [""])[0][:12]
             CMD["t"] = int(time.time())
             return self._send(200, b'{"ok": true}', "application/json")
+        if parts.path == "/gold":                      # Dubai retail gold (AED per gram)
+            try:
+                return self._send(200, json.dumps(dubai_gold()).encode(), "application/json")
+            except Exception as e:  # noqa: BLE001
+                return self._send(502, json.dumps({"error": str(e)[:200]}).encode(), "application/json")
         if parts.path == "/wake/claim":               # asked every 15 s by the laptop's wake task
             want = WAKE_REQ["t"] and time.time() - WAKE_REQ["t"] < 180
             WAKE_REQ["t"] = 0

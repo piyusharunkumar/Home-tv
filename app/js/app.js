@@ -136,7 +136,7 @@
     var SYM = { INR: '₹', USD: '$', EUR: '€', GBP: '£', PKR: 'Rs ', AED: 'AED ', SAR: 'SAR ', PHP: '₱' }, q = SYM[quote] || quote + ' ';
     var out = '<p class="k">Exchange rates</p>' + row('1 ' + base, q + f.rate.toFixed(2), f.change, 0.005);
     if (base !== 'USD' && quote !== 'USD') out += row('1 USD', f.usd ? q + f.usd.toFixed(2) : '—', f.usdChange, 0.005);
-    if (X.gold !== false) out += row('Gold<small>22K</small>', f.gold ? f.gold.toFixed(0) + '<small> ' + base + '/g</small>' : '—', f.goldChange, 0.5);
+    if (X.gold !== false) out += row('Gold<small>22K</small>', f.gold ? (f.gold % 1 ? f.gold.toFixed(1) : f.gold.toFixed(0)) + '<small> ' + base + '/g</small>' : '—', f.goldChange, 0.5);
     return out;
   }
 

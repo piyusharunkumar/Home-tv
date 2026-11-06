@@ -1649,6 +1649,38 @@
 
   // ---------- Guest Wi-Fi QR code ----------
   // A standard Wi-Fi QR code (WIFI:T:WPA;S:name;P:password;;): iPhone and Android cameras offer to join.
+  // Drawn by hand as SVG: round dots, soft rounded corner "eyes", and a gold Wi-Fi symbol in the
+  // middle (high error correction, so the code still scans with the centre covered).
+  function wifiQrSvg(data) {
+    var qr = qrcode(0, 'H');
+    qr.addData(unescape(encodeURIComponent(data)));      // UTF-8, so names with accents or emoji still work
+    qr.make();
+    var n = qr.getModuleCount(), INK = '#1B2230', EYE = '#B8893A', parts = [];
+    var hole = Math.round(n * 0.26) | 1, h0 = (n - hole) / 2, h1 = h0 + hole;   // clear square for the logo
+    function inEye(r, c) { return (r < 7 && c < 7) || (r < 7 && c >= n - 7) || (r >= n - 7 && c < 7); }
+    for (var r = 0; r < n; r++) {
+      for (var c = 0; c < n; c++) {
+        if (!qr.isDark(r, c) || inEye(r, c)) continue;
+        if (r >= h0 - 0.5 && r < h1 + 0.5 && c >= h0 - 0.5 && c < h1 + 0.5) continue;
+        parts.push('<circle cx="' + (c + 0.5) + '" cy="' + (r + 0.5) + '" r="0.43"/>');
+      }
+    }
+    var eyes = '';
+    [[0, 0], [0, n - 7], [n - 7, 0]].forEach(function (p) {
+      var y = p[0], x = p[1];
+      eyes += '<rect x="' + (x + 0.5) + '" y="' + (y + 0.5) + '" width="6" height="6" rx="1.9" fill="none" stroke="' + INK + '" stroke-width="1"/>' +
+              '<rect x="' + (x + 2) + '" y="' + (y + 2) + '" width="3" height="3" rx="0.9" fill="' + INK + '"/>';
+    });
+    var cx = n / 2, cy = n / 2 + hole * 0.16, s = hole * 0.5;      // Wi-Fi symbol: three arcs and a dot
+    function arc(rad) {
+      var a = Math.PI / 4, x1 = cx - rad * Math.sin(a), y1 = cy - rad * Math.cos(a), x2 = cx + rad * Math.sin(a);
+      return '<path d="M' + x1.toFixed(2) + ' ' + y1.toFixed(2) + ' A' + rad + ' ' + rad + ' 0 0 1 ' + x2.toFixed(2) + ' ' + y1.toFixed(2) + '"/>';
+    }
+    var logo = '<g fill="none" stroke="' + EYE + '" stroke-width="' + (s * 0.17).toFixed(2) + '" stroke-linecap="round">' +
+      arc(s * 0.95) + arc(s * 0.62) + '</g><circle cx="' + cx + '" cy="' + (cy - s * 0.08).toFixed(2) + '" r="' + (s * 0.15).toFixed(2) + '" fill="' + EYE + '"/>';
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + n + ' ' + n + '"><g fill="' + INK + '">' + parts.join('') + '</g>' + eyes + logo + '</svg>';
+  }
+
   function drawWifi() {
     var w = C.guestWifi, el = $('wifi');
     if (!el || !w || !w.ssid || typeof qrcode === 'undefined') { if (el) el.classList.add('hidden'); return; }
@@ -1657,12 +1689,8 @@
     if (!w.password) sec = 'nopass';
     var data = 'WIFI:T:' + sec + ';S:' + q(w.ssid) + ';' + (sec !== 'nopass' ? 'P:' + q(w.password) + ';' : '') + (w.hidden ? 'H:true;' : '') + ';';
     try {
-      var qr = qrcode(0, 'M');
-      qr.addData(unescape(encodeURIComponent(data)));      // UTF-8, so names with accents or emoji still work
-      qr.make();
-      $('wifiQr').innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
-      $('wifiName').textContent = w.ssid;
-      $('wifiName').classList.toggle('hidden', !w.showName);   // clean card by default: just the code
+      $('wifiQr').innerHTML = wifiQrSvg(data);
+      $('wifiLabel').textContent = w.showName ? w.ssid : 'Wi-Fi';
       el.classList.remove('hidden');
     } catch (e) { console.warn('[wifi qr]', e.message); el.classList.add('hidden'); }
   }

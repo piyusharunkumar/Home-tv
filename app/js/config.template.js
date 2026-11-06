@@ -22,6 +22,10 @@ window.CONFIG = {
   galleryUntil: "06:00",      // …until (dashboard the rest of the day; GREEN button = gallery any time)
   galleryWordClock: true,     // gallery shows the time as a word clock ("IT IS HALF PAST TEN"); false = plain digits
 
+  // Guest Wi-Fi: a QR code on the home screen that guests scan with their phone camera to join.
+  // Leave ssid empty to hide it. security: "WPA" (covers WPA2/WPA3), "WEP" or "nopass".
+  guestWifi: { ssid: "", password: "", security: "WPA", hidden: false },
+
   // The home server laptop (leave as set by the wizard).
   corsProxy: "http://{{PC_IP}}:8080/proxy?url=",
 

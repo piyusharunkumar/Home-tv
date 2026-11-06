@@ -1647,8 +1647,28 @@
     if (!ok) document.documentElement.className += ' no-flexgap';
   }
 
+  // ---------- Guest Wi-Fi QR code ----------
+  // A standard Wi-Fi QR code (WIFI:T:WPA;S:name;P:password;;): iPhone and Android cameras offer to join.
+  function drawWifi() {
+    var w = C.guestWifi, el = $('wifi');
+    if (!el || !w || !w.ssid || typeof qrcode === 'undefined') { if (el) el.classList.add('hidden'); return; }
+    function q(v) { return String(v || '').replace(/([\\;,:"])/g, '\\$1'); }
+    var sec = /^(WPA|WEP|nopass)$/i.test(w.security || '') ? w.security : 'WPA';
+    if (!w.password) sec = 'nopass';
+    var data = 'WIFI:T:' + sec + ';S:' + q(w.ssid) + ';' + (sec !== 'nopass' ? 'P:' + q(w.password) + ';' : '') + (w.hidden ? 'H:true;' : '') + ';';
+    try {
+      var qr = qrcode(0, 'M');
+      qr.addData(unescape(encodeURIComponent(data)));      // UTF-8, so names with accents or emoji still work
+      qr.make();
+      $('wifiQr').innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+      $('wifiName').textContent = w.ssid;
+      el.classList.remove('hidden');
+    } catch (e) { console.warn('[wifi qr]', e.message); el.classList.add('hidden'); }
+  }
+
   function init() {
     flexGapCheck();
+    drawWifi();
     registerKeys();
     keepScreenOn();
     document.addEventListener('keydown', onKey);

@@ -46,3 +46,5 @@
 .no-flexgap .grid3 { margin-top: auto !important; }
 .no-flexgap .main { margin-top: auto !important; }
 .no-flexgap .mem-card > * + * { margin-left: 56px; }
+.no-flexgap .wifi > * + * { margin-left: 22px; }
+.no-flexgap .wifi-text > * + * { margin-top: 6px; }

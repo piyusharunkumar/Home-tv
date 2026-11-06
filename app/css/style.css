@@ -236,6 +236,16 @@ body { text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55); }
 
 .idle-mid { flex: 0 0 auto; height: 780px; }
 
+/* ---------- Guest Wi-Fi QR code (home screen header) ---------- */
+.wifi { display: flex; align-items: center; gap: 22px; padding: 16px 26px 16px 16px; border-radius: 22px; background: rgba(14, 17, 22, .55);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); align-self: center; }
+.wifi-qr { width: 156px; height: 156px; padding: 12px; border-radius: 12px; background: #FFFFFF; flex-shrink: 0; }
+.wifi-qr svg { display: block; width: 100%; height: 100%; }
+.wifi-text { display: flex; flex-direction: column; gap: 6px; max-width: 280px; }
+.wifi-text .eyebrow { font-size: 16px; letter-spacing: 3px; }
+.wifi-name { font-size: 30px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wifi-how { font-size: 19px; color: var(--muted); line-height: 1.35; }
+
 /* ---------- Word clock (gallery panel + Clock mode) ---------- */
 .wclk { position: relative; background: #2C2C2F; border-radius: 6px; box-shadow: 0 20px 50px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .05); }
 .wclk-row { display: flex; justify-content: space-between; }

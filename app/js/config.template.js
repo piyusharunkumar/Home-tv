@@ -20,6 +20,7 @@ window.CONFIG = {
   backgroundDim: 0.18,        // 0 = no dimming, 1 = black
   galleryFrom: "22:00",       // the gallery takes over by itself from…
   galleryUntil: "06:00",      // …until (dashboard the rest of the day; GREEN button = gallery any time)
+  galleryWordClock: true,     // gallery shows the time as a word clock ("IT IS HALF PAST TEN"); false = plain digits
 
   // The home server laptop (leave as set by the wizard).
   corsProxy: "http://{{PC_IP}}:8080/proxy?url=",

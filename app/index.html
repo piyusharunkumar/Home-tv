@@ -76,6 +76,7 @@
         <div id="iFrame" class="frame"><img id="iImg" alt=""></div>
       </div>
       <div class="label">
+        <div id="iWords" class="wclk wclk-wide" role="img"></div>
         <p id="iTheme" class="eyebrow accent">Gallery</p>
         <p id="iTitle" class="label-title">Opening the gallery…</p>
         <p id="iArtist" class="label-artist"></p>
@@ -93,6 +94,13 @@
     </div>
   </div>
 
+  <!-- ===== Clock mode: a full-screen word clock ===== -->
+  <div id="wclock" class="wclock hidden">
+    <div id="wWords" class="wclk wclk-square" role="img"></div>
+    <p id="wDate" class="wclock-date"></p>
+    <p class="wclock-hint">any button for home</p>
+  </div>
+
   <div id="greet" class="greet hidden"></div>
   <div id="overlay" class="overlay hidden"></div>
   <div id="ask" class="askview hidden"></div>
@@ -105,6 +113,7 @@
 <script src="js/util.js"></script>
 <script src="js/ical.js"></script>
 <script src="js/sources.js"></script>
+<script src="js/wordclock.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

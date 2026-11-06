@@ -62,6 +62,14 @@
     $('iClock').textContent = cp.hm;
     $('iAmpm').textContent = cp.ap;
     $('iDate').textContent = longDate(now) + (S.weather ? ' · ' + S.weather.temp + '° ' + S.weather.desc : '');
+    // Word clock: the gallery spells the time in its right-hand panel; Clock mode shows the big square one.
+    var words = C.galleryWordClock !== false && typeof WordClock !== 'undefined';
+    $('idle').classList.toggle('has-words', words);
+    if (words && view.idle) WordClock.render($('iWords'), 'wide', now);
+    if (view.wclock && typeof WordClock !== 'undefined') {
+      WordClock.render($('wWords'), 'square', now);
+      $('wDate').textContent = $('iDate').textContent;
+    }
   }
 
   function drawWeather() {
@@ -603,14 +611,14 @@
     'spotify': '#1DB954', 'apple tv': '#A1A1A6', 'shahid': '#2EC4B6', 'osn+': '#E4A11B', 'jiohotstar': '#1F80E0' };
   // The apps row, plus a last "Gallery" tile (Samsung's smart remote has no colour buttons).
   function appTiles() {
-    return C.apps.concat([{ label: 'Gallery', gallery: true, color: '#F2B36B' },
+    return C.apps.concat([{ label: 'Gallery', gallery: true, color: '#F2B36B' }, { label: 'Clock', wclock: true, color: '#C9C7C2' },
       { label: G.music ? '♪ On' : '♪ Off', music: true, color: G.music ? '#6FD39A' : '#6B7280' }]);
   }
   function drawApps() {
     // Calm, identical tiles: name + a small brand-colour dot (no mismatched logo images).
     $('apps').innerHTML = appTiles().map(function (a, i) {
       var dot = a.color || APP_DOT[String(a.label).toLowerCase()] || '#F2B36B';
-      return '<div class="app app-c" data-i="' + i + '"><b class="app-dot" style="background:' + esc(dot) + '"></b><span>' + esc(a.label) + '</span></div>';
+      return '<div class="app app-c' + (a.gallery || a.wclock || a.music ? ' app-mini' : '') + '" data-i="' + i + '"><b class="app-dot" style="background:' + esc(dot) + '"></b><span>' + esc(a.label) + '</span></div>';
     }).join('');
     drawFocus();
   }
@@ -631,6 +639,7 @@
 
   function launchApp(a) {
     if (a && a.gallery) { view.manualGallery = true; enterIdle(); return; }
+    if (a && a.wclock) { enterClock(); return; }
     if (a && a.music) { toggleCalm(); return; }
     if (!a.appId) { toast('No app ID set for ' + a.label + ' — press the BLUE button to find it.'); return; }
     if (!ON_TV) { toast('Would open ' + a.label + ' (' + a.appId + ') on the TV'); return; }
@@ -729,6 +738,7 @@
 
   function enterIdle() {
     if (view.idle) return;
+    if (view.wclock) exitClock(true);
     view.idle = true;
     $('idle').classList.remove('hidden');
     $('home').classList.add('hidden');
@@ -749,6 +759,23 @@
     drawAll();
   }
 
+  // Clock mode: a full-screen word clock (the Clock tile). Any button goes back home.
+  function enterClock() {
+    if (view.idle) exitIdle(); if (view.wclock) exitClock();
+    view.wclock = true;
+    $('wclock').classList.remove('hidden');
+    $('home').classList.add('hidden');
+    drawClock();
+  }
+
+  function exitClock(quiet) {
+    if (!view.wclock) return;
+    view.wclock = false;
+    $('wclock').classList.add('hidden');
+    $('home').classList.remove('hidden');
+    if (!quiet) drawAll();
+  }
+
   // ---------- Ask the TV (questions come from the iPhone Shortcut via the laptop) ----------
   // The laptop asks Claude; answers arrive through /state as a short card or a full screen
   // (trip plan, explainer, quiz). Remote: arrows move, OK picks, BACK closes.
@@ -760,7 +787,7 @@
     function t(d) { try { return d ? new Date(d).toString().slice(0, 21) : ''; } catch (e) { return ''; } }
     var w = S.weather || {};
     var snap = {
-      screen: A.open ? 'ask:' + A.kind : view.idle ? 'gallery' : view.card,
+      screen: A.open ? 'ask:' + A.kind : view.idle ? 'gallery' : view.wclock ? 'clock' : view.card,
       weather: S.weather ? { now: w.temp + '°, ' + w.desc, feels: w.feels, high: w.high, low: w.low, uv: w.uv, humidity: w.humidity,
         sunrise: w.sunrise, sunset: w.sunset, nextHours: (w.hours || []).slice(0, 8), nextDays: (w.days || []).slice(0, 5) } : null,
       airQuality: S.aqi || null,
@@ -793,14 +820,15 @@
     (list || []).forEach(function (a) {
       try {
         if (a.do === 'gallery') { view.manualGallery = true; enterIdle(); }
-        else if (a.do === 'home') { if (view.idle) exitIdle(); }
+        else if (a.do === 'clock') enterClock();
+        else if (a.do === 'home') { if (view.idle) exitIdle(); if (view.wclock) exitClock(); }
         else if (a.do === 'play_jazz') playCalm(false, 'jazz');
         else if (a.do === 'play_bhajans') playCalm(false, 'bhajans');
         else if (a.do === 'stop_music') stopCalm();
         else if (a.do === 'show_screen' && a.target) {
           var tgt = String(a.target).toLowerCase(), map = { deliveries: 'orders', bills: 'orders', photos: 'memories', headlines: 'news', 'on the way home': 'papa' };
           tgt = map[tgt] || tgt;
-          if (eligibleCards().indexOf(tgt) >= 0) { if (view.idle) exitIdle(); view.card = tgt; view.manualAt = Date.now(); drawCard(true); }
+          if (eligibleCards().indexOf(tgt) >= 0) { if (view.idle) exitIdle(); if (view.wclock) exitClock(); view.card = tgt; view.manualAt = Date.now(); drawCard(true); }
         } else if (a.do === 'open_app' && a.target) {
           var name = String(a.target).toLowerCase();
           var app = C.apps.filter(function (x) { return x.label.toLowerCase() === name; })[0] ||
@@ -1245,7 +1273,7 @@
   // Coming home after being out (seen via Find My): short, warm, then music + tour.
   function runWelcome() {
     G.active = 'welcome';
-    if (view.idle) exitIdle();
+    if (view.idle) exitIdle(); if (view.wclock) exitClock();
     var n = C.greetings.morningName, wk = isWorkday(new Date()), late = new Date().getHours() >= 22;
     var say = wk ? pick(['Hi ' + n + ', welcome home! Hope you had a good day.', 'Welcome home, ' + n + '! Hope your day went well.'])
                  : pick(['Welcome back, ' + n + '! Hope you enjoyed being out.', 'Hi ' + n + ', welcome home! Hope you had a lovely time.']);
@@ -1308,14 +1336,14 @@
   // powers on (GET /poweron); the app compares that moment with the last greeting it gave.
   function greetNow(part) {
     var h = new Date().getHours();
-    if (view.idle) exitIdle();
+    if (view.idle) exitIdle(); if (view.wclock) exitClock();
     if (!part) part = h >= 4 && h < 12 ? 'morning' : h >= 12 && h < 17 ? 'afternoon' : 'evening';
     if (part === 'evening') runEvening(); else runMorning(part);
   }
   var greetBoot = true;
   // After a greeting: walk through every screen once (4 s each), then normal rotation resumes.
   function startTour() {
-    if (view.idle) exitIdle();
+    if (view.idle) exitIdle(); if (view.wclock) exitClock();
     var list = eligibleCards(), i = 0;
     view.tour = true;
     (function step() {
@@ -1335,7 +1363,8 @@
       if (st.cmd && st.cmd.t > U.store.get('cmd_last', 0) && Date.now() / 1000 - st.cmd.t < 120) {   // a command sent from the laptop (recent only)
         U.store.set('cmd_last', st.cmd.t);
         if (st.cmd.do === 'gallery') { view.manualGallery = true; enterIdle(); }
-        else if (st.cmd.do === 'home') exitIdle();
+        else if (st.cmd.do === 'clock') enterClock();
+        else if (st.cmd.do === 'home') { exitIdle(); exitClock(); }
         else if (st.cmd.do === 'music') playCalm();
       }
       askChip(st.askBusy);
@@ -1383,6 +1412,7 @@
     if (!$('askcard').classList.contains('hidden') && (code === KEY.BACK || code === KEY.ESC || code === KEY.ENTER)) { e.preventDefault(); closeAskCard(); stopSpeech(); return; }
     view.tour = false;
     if (G.music && (MEDIA[code] === 'ColorF0Red' || /Play|Pause/.test(MEDIA[code] || ''))) { e.preventDefault(); stopCalm(); toast('Music stopped'); return; }
+    if (view.wclock) { e.preventDefault(); exitClock(); return; }
     if (view.idle) {
       e.preventDefault();
       exitIdle();
@@ -1596,7 +1626,7 @@
   function tick() {
     drawClock();
     // No remote press for idleMinutes → gallery, any time of day (not while another app is in front or Sam's screen is open).
-    if (!view.idle && !G.active && !A.open && !document.hidden && Date.now() - view.lastInput > C.idleMinutes * 60000) enterIdle();
+    if (!view.idle && !view.wclock && !G.active && !A.open && !document.hidden && Date.now() - view.lastInput > C.idleMinutes * 60000) enterIdle();
   }
 
   function keepScreenOn() {

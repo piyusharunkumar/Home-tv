@@ -1662,6 +1662,7 @@
       qr.make();
       $('wifiQr').innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
       $('wifiName').textContent = w.ssid;
+      $('wifiName').classList.toggle('hidden', !w.showName);   // clean card by default: just the code
       el.classList.remove('hidden');
     } catch (e) { console.warn('[wifi qr]', e.message); el.classList.add('hidden'); }
   }

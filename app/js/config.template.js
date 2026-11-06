@@ -24,7 +24,8 @@ window.CONFIG = {
 
   // Guest Wi-Fi: a QR code on the home screen that guests scan with their phone camera to join.
   // Leave ssid empty to hide it. security: "WPA" (covers WPA2/WPA3), "WEP" or "nopass".
-  guestWifi: { ssid: "", password: "", security: "WPA", hidden: false },
+  // showName: true also prints the network name next to the code.
+  guestWifi: { ssid: "", password: "", security: "WPA", hidden: false, showName: false },
 
   // The home server laptop (leave as set by the wizard).
   corsProxy: "http://{{PC_IP}}:8080/proxy?url=",

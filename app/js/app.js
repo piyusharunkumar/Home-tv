@@ -67,8 +67,7 @@
     $('idle').classList.toggle('has-words', words);
     if (words && view.idle) WordClock.render($('iWords'), 'wide', now);
     if (view.wclock && typeof WordClock !== 'undefined') {
-      WordClock.render($('wWords'), 'square', now);
-      $('wDate').textContent = $('iDate').textContent;
+      WordClock.render($('wWords'), 'full', now);
     }
   }
 
@@ -759,7 +758,7 @@
     drawAll();
   }
 
-  // Clock mode: a full-screen word clock (the Clock tile). Any button goes back home.
+  // Clock mode: a word clock filling the whole screen (the Clock tile). Any button goes back home.
   function enterClock() {
     if (view.idle) exitIdle(); if (view.wclock) exitClock();
     view.wclock = true;

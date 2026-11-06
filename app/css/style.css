@@ -254,15 +254,14 @@ body { text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55); }
 .idle.has-words #iClock, .idle.has-words #iAmpm { display: none; }
 .idle.has-words .idle-date { margin-left: 0; }
 
-.wclock { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; background: #121212; color: #EDEAE4;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; animation: fade 1s ease; }
-.wclk-square { width: 820px; height: 820px; padding: 84px 80px; display: flex; flex-direction: column; justify-content: space-between; }
-.wclk-square span { font-size: 52px; font-weight: 500; }
-.wclk-square .wclk-dot { width: 12px; height: 12px; }
-.wclk-square .wclk-dot.d1 { left: 30px; top: 30px; } .wclk-square .wclk-dot.d2 { right: 30px; top: 30px; }
-.wclk-square .wclk-dot.d3 { right: 30px; bottom: 30px; } .wclk-square .wclk-dot.d4 { left: 30px; bottom: 30px; }
-.wclock-date { margin-top: 44px; font-size: 26px; color: #9A968F; }
-.wclock-hint { position: absolute; right: 96px; top: 60px; font-size: 20px; color: #6E6A64; }
+.wclock { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; background: #2C2C2F; animation: fade 1s ease; }
+.wclk-full { width: 1920px; height: 1080px; padding: 110px 120px; display: flex; flex-direction: column; justify-content: space-between;
+  background: transparent; box-shadow: none; border-radius: 0; }
+.wclk-full span { font-size: 84px; font-weight: 500; color: #46464B; }
+.wclk-full span.on { text-shadow: 0 0 22px rgba(255, 255, 255, .5); }
+.wclk-full .wclk-dot { width: 14px; height: 14px; background: #46464B; }
+.wclk-full .wclk-dot.d1 { left: 48px; top: 48px; } .wclk-full .wclk-dot.d2 { right: 48px; top: 48px; }
+.wclk-full .wclk-dot.d3 { right: 48px; bottom: 48px; } .wclk-full .wclk-dot.d4 { left: 48px; bottom: 48px; }
 .idle-stage { height: 780px; }
 
 /* ---------- World clock & rupee tiles (v3) ---------- */

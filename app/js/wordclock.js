@@ -1,6 +1,6 @@
 /* Word clock: spells the time in lit letters on a dim letter grid ("IT IS HALF PAST TEN").
- * Two layouts: 'wide' (20 x 5, for the gallery's right-hand column) and 'square'
- * (11 x 10, the classic word-clock face, for the full-screen Clock mode).
+ * Layouts: 'wide' (20 x 5, for the gallery's right-hand column), 'full' (16 x 7, fills the
+ * whole screen in Clock mode) and 'square' (11 x 10, the classic word-clock face).
  * Words change every five minutes; the four corner dots count the minutes in between. */
 var WordClock = (function () {
   // Each word: [row, column, length]. Minute words end in _M; hour words are ONE…TWELVE.
@@ -13,6 +13,19 @@ var WordClock = (function () {
         HALF: [3, 0, 4], TEN_M: [3, 5, 3], TO: [3, 9, 2], PAST: [4, 0, 4], NINE: [4, 7, 4],
         ONE: [5, 0, 3], SIX: [5, 3, 3], THREE: [5, 6, 5], FOUR: [6, 0, 4], FIVE: [6, 4, 4], TWO: [6, 8, 3],
         EIGHT: [7, 0, 5], ELEVEN: [7, 5, 6], SEVEN: [8, 0, 5], TWELVE: [8, 5, 6], TEN: [9, 0, 3], OCLOCK: [9, 5, 6]
+      }
+    },
+    full: {
+      rows: ['ITLISAQUARTERDCX', 'TWENTYFIVEXHALFS', 'TENXPASTETOMONEJ', 'TWOTHREEFOURFIVE',
+             'SIXSEVENEIGHTAPM', 'NINETENELEVENAMB', 'TWELVEZOCLOCKPMS'],
+      words: {
+        IT: [0, 0, 2], IS: [0, 3, 2], A: [0, 5, 1], QUARTER: [0, 6, 7],
+        TWENTY: [1, 0, 6], FIVE_M: [1, 6, 4], HALF: [1, 11, 4],
+        TEN_M: [2, 0, 3], PAST: [2, 4, 4], TO: [2, 9, 2], ONE: [2, 12, 3],
+        TWO: [3, 0, 3], THREE: [3, 3, 5], FOUR: [3, 8, 4], FIVE: [3, 12, 4],
+        SIX: [4, 0, 3], SEVEN: [4, 3, 5], EIGHT: [4, 8, 5],
+        NINE: [5, 0, 4], TEN: [5, 4, 3], ELEVEN: [5, 7, 6],
+        TWELVE: [6, 0, 6], OCLOCK: [6, 7, 6]
       }
     },
     wide: {
@@ -55,7 +68,7 @@ var WordClock = (function () {
       html += '<i class="wclk-dot d1"></i><i class="wclk-dot d2"></i><i class="wclk-dot d3"></i><i class="wclk-dot d4"></i>';
       el.innerHTML = html;
       el.dataset.layout = layoutName;
-      el.className = (el.className.replace(/\s*wclk(-square|-wide)?\b/g, '') + ' wclk wclk-' + layoutName).trim();
+      el.className = (el.className.replace(/\s*wclk(-square|-wide|-full)?\b/g, '') + ' wclk wclk-' + layoutName).trim();
     }
     var lit = {};
     words(d).forEach(function (k) {

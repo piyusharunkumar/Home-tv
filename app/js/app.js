@@ -65,7 +65,8 @@
     // Word clock: the gallery spells the time in its right-hand panel; Clock mode shows the big square one.
     var words = C.galleryWordClock !== false && typeof WordClock !== 'undefined';
     $('idle').classList.toggle('has-words', words);
-    if (words && view.idle) WordClock.render($('iWords'), 'wide', now);
+    var themed = typeof ThemeClock !== 'undefined' && C.galleryThemedClock !== false;
+    if (words && view.idle) { if (themed) ThemeClock.render($('iWords'), now); else WordClock.render($('iWords'), 'wide', now); }
     if (view.wclock && typeof WordClock !== 'undefined') {
       WordClock.render($('wWords'), 'full', now);
     }

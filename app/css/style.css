@@ -482,3 +482,55 @@ body { text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55); }
 
 #apps .app span { white-space: nowrap; }
 #apps .app { min-width: 0; padding: 0 10px; }
+
+/* Compact weather extras: icon + number (AQI, UV, sunrise, sunset) */
+.wxis { display: flex; justify-content: flex-end; align-items: center; }
+.wxi { display: flex; align-items: center; margin: 0 0 0 26px; font-size: 24px; color: #E7E9EC; white-space: nowrap; text-shadow: 0 1px 8px rgba(0,0,0,.65); }
+.wxi-i svg { filter: drop-shadow(0 1px 4px rgba(0,0,0,.6)); }
+.wxi:first-child { margin-left: 0; }
+.wxi-i { position: relative; display: block; width: 28px; height: 28px; margin-right: 8px; }
+.wxi-i svg { display: block; width: 28px; height: 28px; fill: none; stroke: #C9CDD3; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.wxi b { font-weight: 700; }
+.wxi small { margin-left: 5px; font-size: 15px; font-weight: 700; letter-spacing: .06em; color: var(--muted); }
+.wxi-dot { position: absolute; right: -3px; bottom: -1px; width: 11px; height: 11px; border-radius: 50%; box-shadow: 0 0 0 2px rgba(0,0,0,.35); }
+
+/* ---------- Gallery word clock, themed to the picture on display (js/themeclock.js) ---------- */
+#iWords { transition: opacity .45s ease; }
+.wclk.wct { background: var(--wc-bg); }
+.wclk.wct span { color: var(--wc-off); text-shadow: none; }
+.wclk.wct span.on { color: var(--wc-on); text-shadow: 0 0 12px var(--wc-glow); }
+.wclk.wct .wclk-dot { background: var(--wc-off); }
+.wclk.wct .wclk-dot.on { background: var(--wc-seal); box-shadow: 0 0 8px var(--wc-glow); }
+
+/* Impressionism: soft brushwork of the painting's own colours, elegant italic */
+.wclk.wct-impressionism { border-radius: 24px;
+  background: radial-gradient(ellipse at 18% 22%, var(--wc-bg2) 0, rgba(0,0,0,0) 58%),
+              radial-gradient(ellipse at 85% 85%, var(--wc-bg3) 0, rgba(0,0,0,0) 55%), var(--wc-bg); }
+.wclk.wct-impressionism span { font-family: 'Playfair Display', 'Cormorant Garamond', serif; font-style: italic; font-weight: 500; font-size: 22px; }
+.wclk.wct-impressionism .wclk-dot { border-radius: 50% 40% 55% 45%; }
+
+/* Landscapes: sky-to-land gradient, classical serif */
+.wclk.wct-landscape { border-radius: 8px; background: linear-gradient(180deg, var(--wc-bg2) 0%, var(--wc-bg) 70%); }
+.wclk.wct-landscape span { font-family: 'Cormorant Garamond', serif; font-weight: 600; font-size: 24px; }
+
+/* Japanese prints: paper, ink lettering, a thin printed border and red seal dots */
+.wclk.wct-japanese { border-radius: 2px; background: linear-gradient(180deg, var(--wc-bg) 0%, var(--wc-bg2) 100%);
+  box-shadow: 0 20px 50px rgba(0,0,0,.55), inset 0 0 0 10px var(--wc-bg), inset 0 0 0 11px var(--wc-line); }
+.wclk.wct-japanese span { font-family: 'Shippori Mincho', serif; font-weight: 600; font-size: 21px; }
+.wclk.wct-japanese span.on { text-shadow: none; }
+.wclk.wct-japanese .wclk-dot { border-radius: 1px; width: 8px; height: 8px; }
+.wclk.wct-japanese .wclk-dot.on { box-shadow: none; }
+
+/* Indian miniatures: deep jewel ground, gilded double border, ornamental lettering, gold diamonds */
+.wclk.wct-indian { border-radius: 4px; background: radial-gradient(ellipse at 50% 0%, var(--wc-bg2) 0, rgba(0,0,0,0) 70%), var(--wc-bg);
+  box-shadow: 0 20px 50px rgba(0,0,0,.55), inset 0 0 0 3px var(--wc-line), inset 0 0 0 8px var(--wc-bg), inset 0 0 0 9px var(--wc-line); }
+.wclk.wct-indian span { font-family: 'Rozha One', serif; font-weight: 400; font-size: 22px; }
+.wclk.wct-indian .wclk-dot { border-radius: 0; transform: rotate(45deg); }
+
+/* Film posters: near-black, condensed poster type, the poster's boldest colour, credit-block rules */
+.wclk.wct-poster { border-radius: 0; background: var(--wc-bg); border-top: 4px solid var(--wc-line); border-bottom: 4px solid var(--wc-line); }
+.wclk.wct-poster span { font-family: 'Bebas Neue', 'Manrope', sans-serif; font-weight: 400; font-size: 28px; }
+.wclk.wct-poster .wclk-dot { border-radius: 0; }
+
+/* Family photos (and anything else): the plain clock, tinted by the photo */
+.wclk.wct-family span, .wclk.wct-classic span { font-family: 'Manrope', sans-serif; }

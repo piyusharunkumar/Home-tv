@@ -78,17 +78,28 @@
       $('wxTemp').textContent = w.temp + '°';
       $('wxDesc').textContent = w.desc;
       $('wxRange').textContent = 'High ' + w.high + '° · Low ' + w.low + '°';
-      $('chipUv').textContent = 'UV ' + w.uv + ' · ' + (w.uv <= 2 ? 'Low' : w.uv <= 5 ? 'Moderate' : w.uv <= 7 ? 'High' : w.uv <= 10 ? 'Very high' : 'Extreme');
-      $('chipUv').classList.remove('hidden');
-      $('chipSunrise').textContent = 'Sunrise ' + U.time12(w.sunrise);
-      $('chipSunrise').classList.remove('hidden');
-      $('chipSunset').textContent = 'Sunset ' + U.time12(w.sunset);
-      $('chipSunset').classList.remove('hidden');
+      var uvc = w.uv <= 2 ? '#6FD39A' : w.uv <= 5 ? '#F2C94C' : w.uv <= 7 ? '#F2994A' : w.uv <= 10 ? '#EB5757' : '#B67CF0';
+      setWxi('chipUv', WXI.uv.replace('currentColor', uvc), Math.round(w.uv), 'UV');
+      setWxi('chipSunrise', WXI.rise, hm(w.sunrise));
+      setWxi('chipSunset', WXI.set, hm(w.sunset));
     }
     if (S.aqi) {
-      $('chipAqi').textContent = 'Air quality ' + S.aqi.value + ' · ' + S.aqi.label;
-      $('chipAqi').classList.remove('hidden');
+      var v = S.aqi.value, ac = v <= 50 ? '#6FD39A' : v <= 100 ? '#F2C94C' : v <= 150 ? '#F2994A' : v <= 200 ? '#EB5757' : '#B67CF0';
+      setWxi('chipAqi', WXI.air + '<i class="wxi-dot" style="background:' + ac + '"></i>', v, 'AQI');
     }
+  }
+  // Compact, icon-led weather extras: air quality, UV, sunrise and sunset (number + small icon, no sentences).
+  var WXI = {
+    air: '<svg viewBox="0 0 24 24"><path d="M3 8h10a3 3 0 1 0-3-3M3 12h14a3 3 0 1 1-3 3M3 16h7"/></svg>',
+    uv: '<svg viewBox="0 0 24 24"><g style="stroke:currentColor"><circle cx="12" cy="12" r="4" style="fill:currentColor"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></g></svg>',
+    rise: '<svg viewBox="0 0 24 24"><path d="M3 19h18M7 19a5 5 0 0 1 10 0M12 3v6M9 6l3-3 3 3"/></svg>',
+    set: '<svg viewBox="0 0 24 24"><path d="M3 19h18M7 19a5 5 0 0 1 10 0M12 3v6M9 6l3 3 3-3"/></svg>'
+  };
+  function hm(t) { return String(U.time12(t)).replace(/\s*[AP]M$/i, ''); }
+  function setWxi(id, icon, val, unit) {
+    var el = $(id);
+    el.innerHTML = '<span class="wxi-i">' + icon + '</span><b>' + esc(String(val)) + '</b>' + (unit ? '<small>' + unit + '</small>' : '');
+    el.classList.remove('hidden');
   }
 
   function nextPrayer() {
@@ -610,7 +621,7 @@
     'spotify': '#1DB954', 'apple tv': '#A1A1A6', 'shahid': '#2EC4B6', 'osn+': '#E4A11B', 'jiohotstar': '#1F80E0' };
   // The apps row, plus a last "Gallery" tile (Samsung's smart remote has no colour buttons).
   function appTiles() {
-    return C.apps.concat([{ label: 'Gallery', gallery: true, color: '#F2B36B' }, { label: 'Clock', wclock: true, color: '#C9C7C2' },
+    return C.apps.concat([{ label: 'Gallery', gallery: true, color: '#F2B36B' },
       { label: G.music ? '♪ On' : '♪ Off', music: true, color: G.music ? '#6FD39A' : '#6B7280' }]);
   }
   function drawApps() {
@@ -695,6 +706,11 @@
     $('iMeta').textContent = [a.date, a.medium].filter(Boolean).join(' · ');
     $('iNote').textContent = a.note || '';
     $('iMuseum').textContent = (a.film || a.family) ? a.museum : a.museum + ' · Open Access';
+    // The word clock takes on the look of the picture: its theme's typeface and the picture's colours.
+    if (typeof ThemeClock !== 'undefined' && C.galleryThemedClock !== false) {
+      var sampleSrc = (a.film || a.family || !C.corsProxy) ? a.src : C.corsProxy + encodeURIComponent(a.src);
+      if (drawIdleArt.themed !== a.src) { drawIdleArt.themed = a.src; ThemeClock.apply($('iWords'), a, sampleSrc); }
+    }
   }
 
   async function loadHomeArt() {
@@ -819,7 +835,6 @@
     (list || []).forEach(function (a) {
       try {
         if (a.do === 'gallery') { view.manualGallery = true; enterIdle(); }
-        else if (a.do === 'clock') enterClock();
         else if (a.do === 'home') { if (view.idle) exitIdle(); if (view.wclock) exitClock(); }
         else if (a.do === 'play_jazz') playCalm(false, 'jazz');
         else if (a.do === 'play_bhajans') playCalm(false, 'bhajans');
@@ -1362,7 +1377,6 @@
       if (st.cmd && st.cmd.t > U.store.get('cmd_last', 0) && Date.now() / 1000 - st.cmd.t < 120) {   // a command sent from the laptop (recent only)
         U.store.set('cmd_last', st.cmd.t);
         if (st.cmd.do === 'gallery') { view.manualGallery = true; enterIdle(); }
-        else if (st.cmd.do === 'clock') enterClock();
         else if (st.cmd.do === 'home') { exitIdle(); exitClock(); }
         else if (st.cmd.do === 'music') playCalm();
       }

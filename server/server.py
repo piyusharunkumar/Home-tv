@@ -12,7 +12,7 @@ ALLOWED_HOSTS = {h.strip().lower() for h in os.environ.get(
     "ALLOWED_HOSTS",
     "calendar.google.com,news.google.com,docs.google.com,"
     "sheets.googleusercontent.com,doc-0s-sheets.googleusercontent.com,"
-    "outlook.office365.com,outlook.office.com,outlook.live.com,query1.finance.yahoo.com"
+    "outlook.office365.com,outlook.office.com,outlook.live.com,query1.finance.yahoo.com,openaccess-cdn.clevelandart.org"
 ).split(",") if h.strip()}
 ALLOWED_SUFFIXES = (".googleusercontent.com",)
 CACHE_SECONDS = int(os.environ.get("CACHE_SECONDS", "300"))
@@ -316,7 +316,7 @@ RESPOND_TOOL = {
                 "autoplay": {"type": "boolean", "description": "true when they asked to play one specific thing (a named song or video); false when they want to browse"}},
                 "required": ["query"]},
             "actions": {"type": "array", "items": {"type": "object", "properties": {
-                "do": {"type": "string", "enum": ["gallery", "clock", "home", "play_jazz", "play_bhajans", "stop_music", "show_screen", "open_app", "tv_on"]},
+                "do": {"type": "string", "enum": ["gallery", "home", "play_jazz", "play_bhajans", "stop_music", "show_screen", "open_app", "tv_on"]},
                 "target": {"type": "string", "description": "screen name (commute, calendar, weather, orders, memories, news) or app name"}},
                 "required": ["do"]}},
             "phone_text": {"type": "string", "description": "Plain-text copy for the phone. For trips include the whole plan; otherwise repeat the answer briefly."},
@@ -365,7 +365,7 @@ def ask_system(who):
         "- Turning the TV on: when asked to switch/turn the TV on, add the action tv_on and say it'll be on in about a minute. "
         "If the TV seems to be off (the dashboard hasn't checked in for more than 5 minutes) and they ask for something to see on it, "
         "add tv_on as well and mention you're switching it on. You can't switch the TV off; say they can use the remote.\n"
-        "- Actions: use them when asked to show the gallery, show the clock (a full-screen word clock), go home, play or stop music, show a screen or open an app.\n"
+        "- Actions: use them when asked to show the gallery, go home, play or stop music, show a screen or open an app.\n"
     )
     now = (
         "The person asking now: " + (who or "someone at home") + ".\n"

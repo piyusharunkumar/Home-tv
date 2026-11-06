@@ -1537,7 +1537,7 @@
 
     reg('weather', 15 * MIN, async function () { S.weather = await Sources.weather(); });
     reg('aqi', 30 * MIN, async function () { S.aqi = await Sources.airQuality(); });
-    reg('fx', 3 * 60 * MIN, async function () { S.fx = await Sources.fx(); });
+    reg('fx', 30 * MIN, async function () { S.fx = await Sources.fx(); });
     reg('calendar', 10 * MIN, async function () { S.gEvents = await Sources.calendar(); S.events = Sources.mergeEvents(S.gEvents, S.phone && S.phone.events); });
     reg('papa', 1 * MIN, async function () {
       var was = !!S.papa;
@@ -1690,7 +1690,9 @@
     var data = 'WIFI:T:' + sec + ';S:' + q(w.ssid) + ';' + (sec !== 'nopass' ? 'P:' + q(w.password) + ';' : '') + (w.hidden ? 'H:true;' : '') + ';';
     try {
       $('wifiQr').innerHTML = wifiQrSvg(data);
-      $('wifiLabel').textContent = w.showName ? w.ssid : 'Wi-Fi';
+      $('wifiLabel').textContent = w.showName ? w.ssid : '';          // no caption unless asked for: the QR's Wi-Fi symbol says it
+      $('wifiLabel').classList.toggle('hidden', !w.showName);
+      el.classList.toggle('no-label', !w.showName);
       el.classList.remove('hidden');
     } catch (e) { console.warn('[wifi qr]', e.message); el.classList.add('hidden'); }
   }

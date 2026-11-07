@@ -157,7 +157,7 @@ powercfg /setacvalueindex SCHEME_CURRENT SUB_VIDEO 8ec4b3a5-6868-48c2-be75-4f304
 powercfg /setactive SCHEME_CURRENT
 Write-Host '  Never sleeps on mains power; closing the lid does nothing.'
 if (-not (Get-NetFirewallRule -DisplayName 'Home TV relay' -ErrorAction SilentlyContinue)) {
-  New-NetFirewallRule -DisplayName 'Home TV relay' -Direction Inbound -Protocol TCP -LocalPort 8080 -Action Allow -Profile Any | Out-Null
+  New-NetFirewallRule -DisplayName 'Home TV relay' -Direction Inbound -Protocol TCP -LocalPort 8080,8081 -Action Allow -Profile Any | Out-Null
 }
 Push-Location (Join-Path $Root 'server')
 $ErrorActionPreference = 'Continue'

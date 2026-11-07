@@ -248,15 +248,17 @@
     var badges = '<span class="cu-b">' + CU_ICON.weekend + '<span><small>Weekend</small>' + inDays(n) + '</span></span>';
     var cd = nextCountdown();
     if (cd) badges += '<span class="cu-b">' + CU_ICON.occasion + '<span><small>' + esc(cd.label) + '</small>' + inDays(cd.days) + '</span></span>';
-    var rel = (S.releases || []).slice(0, 5), today = U.dayKey(now), tmr = U.dayKey(new Date(now.getTime() + 86400000));
-    var strip = rel.map(function (r) {
-      var when = !r.date ? 'This week' : r.date === today ? 'Today' : r.date === tmr ? 'Tomorrow' : r.date < today ? 'Out now' : WEEKDAYS[U.parseLocalDate(r.date).getDay()].slice(0, 3);
-      var mark = r.logo ? '<img class="cu-logo" src="' + esc(r.logo) + '" alt="">' : '<span class="cu-logo cu-cin">' + CU_ICON.cinema + '</span>';
-      return '<div class="cu-p"><div class="cu-img"><img src="' + esc(r.poster) + '" alt="">' + mark +
-        (r.season ? '<span class="cu-tag">S' + r.season + '</span>' : r.lang === 'hi' ? '<span class="cu-tag">Hindi</span>' : '') +
-        '</div><p class="cu-w">' + esc(when) + '</p></div>';
+    var rel = (S.releases || []).slice(0, 4), today = U.dayKey(now), tmr = U.dayKey(new Date(now.getTime() + 86400000));
+    var rows = rel.map(function (r) {
+      var d = r.date ? U.parseLocalDate(r.date) : null;
+      var when = !d ? 'This week' : r.date === today ? 'Today' : r.date === tmr ? 'Tomorrow' : r.date < today ? 'Out now' : WEEKDAYS[d.getDay()].slice(0, 3) + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()].slice(0, 3);
+      var thumb = r.poster ? '<img class="cu-th" src="' + esc(r.poster) + '" alt="">' : '<span class="cu-th"></span>';
+      var mark = r.logo ? '<img class="cu-ic" src="' + esc(r.logo) + '" alt="">' : '<span class="cu-ic cu-cin">' + CU_ICON.cinema + '</span>';
+      var tag = r.season ? ' · Season ' + r.season : '';
+      return '<div class="cu-r">' + thumb + '<span class="cu-d">' + esc(when) + '</span><span class="cu-t">' + esc(r.title + tag) +
+        (r.lang === 'hi' ? '<em>Hindi</em>' : '') + '</span><span class="cu-s">' + mark + esc(r.where || '') + '</span></div>';
     }).join('');
-    return '<div class="cu-head"><p class="k">Coming up</p><div class="cu-bs">' + badges + '</div></div>' + (strip ? '<div class="cu-strip">' + strip + '</div>' : '');
+    return '<div class="cu-head"><p class="k">Coming up</p><div class="cu-bs">' + badges + '</div></div>' + (rows ? '<div class="cu-list">' + rows + '</div>' : '');
   }
 
   function drawTiles() {

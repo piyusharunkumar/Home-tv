@@ -521,13 +521,13 @@ body { text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55); }
 .cu-b svg { width: 26px; height: 26px; margin-right: 8px; fill: none; stroke: #C9CDD3; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .cu-b svg .f { fill: #F2B36B; stroke: none; }
 .cu-b small { display: block; font-size: 13px; font-weight: 600; color: var(--muted); line-height: 1.1; }
-.cu-strip { display: flex; margin-top: 10px; }
-.cu-p { flex: 0 0 82px; margin-right: 16px; }
-.cu-p:last-child { margin-right: 0; }
-.cu-img { position: relative; width: 82px; height: 123px; border-radius: 8px; overflow: hidden; background: #1d2330; box-shadow: 0 6px 16px rgba(0,0,0,.45); }
-.cu-img > img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.cu-logo { position: absolute; right: 4px; bottom: 4px; width: 26px; height: 26px; border-radius: 6px; box-shadow: 0 0 0 1.5px rgba(0,0,0,.5); }
+.cu-list { margin-top: 6px; }
+.cu-r { display: flex; align-items: center; height: 40px; border-top: 1px solid rgba(255,255,255,.08); font-size: 18px; }
+.cu-th { flex: 0 0 22px; width: 22px; height: 32px; margin-right: 14px; border-radius: 3px; object-fit: cover; background: #2a303b; }
+.cu-d { flex: 0 0 116px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.cu-t { flex: 1 1 auto; min-width: 0; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cu-t em { margin-left: 10px; font-style: normal; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #F2B36B; }
+.cu-s { display: flex; align-items: center; flex: 0 0 auto; margin-left: 14px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.cu-ic { width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; object-fit: cover; }
 .cu-cin { display: flex; align-items: center; justify-content: center; background: #F2B36B; }
-.cu-cin svg { width: 18px; height: 18px; fill: none; stroke: #1B1F27; stroke-width: 1.8; }
-.cu-tag { position: absolute; left: 4px; top: 4px; padding: 1px 5px; border-radius: 4px; background: rgba(0,0,0,.75); font-size: 11px; font-weight: 700; letter-spacing: .04em; color: #F2B36B; text-shadow: none; }
-.cu-w { margin-top: 6px; font-size: 15px; font-weight: 700; color: #D6D9DE; text-align: center; white-space: nowrap; }
+.cu-cin svg { width: 13px; height: 13px; fill: none; stroke: #1B1F27; stroke-width: 2; }

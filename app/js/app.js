@@ -224,15 +224,23 @@
   }
 
   function tileDays() {
-    // Commute during the morning window; otherwise weekend + next countdown together.
+    // Commute during the morning window; otherwise what's coming up: weekend, the next occasion,
+    // and new films and shows arriving this week.
     var c = C.commute, now = new Date(), h = now.getHours();
     if (S.commute && isWorkday(now) && h >= c.fromHour && h < c.toHour) return tileCommute();
     var n = 0;
     while (C.weekend.indexOf((now.getDay() + n) % 7) < 0 && n < 7) n++;
-    var rows = '<div class="fx-row"><span class="fx-k">Weekend</span><span class="fx-v">' + (n === 0 ? 'Today' : n + '<span class="u">' + (n === 1 ? 'day' : 'days') + '</span>') + '</span></div>';
+    function inDays(d) { return d === 0 ? 'Today' : d + (d === 1 ? ' day' : ' days'); }
+    var chips = '<span class="cu-chip">Weekend <b>' + inDays(n) + '</b></span>';
     var cd = nextCountdown();
-    if (cd) rows += '<div class="fx-row"><span class="fx-k">' + esc(cd.label) + '</span><span class="fx-v">' + (cd.days === 0 ? 'Today' : cd.days + '<span class="u">' + (cd.days === 1 ? 'day' : 'days') + '</span>') + '</span></div>';
-    return '<p class="k">Coming up</p>' + rows;
+    if (cd) chips += '<span class="cu-chip">' + esc(cd.label) + ' <b>' + inDays(cd.days) + '</b></span>';
+    var rel = (S.releases || []).slice(0, 4), today = U.dayKey(now), tmr = U.dayKey(new Date(now.getTime() + 86400000));
+    var rows = rel.map(function (r) {
+      var when = !r.date ? 'This week' : r.date === today ? 'Today' : r.date === tmr ? 'Tomorrow' : r.date < today ? 'Out now' : shortDay(U.parseLocalDate(r.date));
+      return '<div class="cu-row"><span class="cu-when">' + esc(when) + '</span><span class="cu-t">' + esc(r.title) +
+        (r.lang === 'hi' ? '<small class="cu-hi">Hindi</small>' : '') + '</span><span class="cu-where">' + esc(r.where) + '</span></div>';
+    }).join('');
+    return '<p class="k">Coming up</p><div class="cu-chips">' + chips + '</div>' + (rows ? '<div class="cu-list">' + rows + '</div>' : '');
   }
 
   function drawTiles() {
@@ -269,7 +277,6 @@
     // While the live 'on the way home' map is up, the fixed office → home commute would only contradict it.
     if (C.googleMapsKey && C.commute.origin && (S.route || !S.routeFailed) && !(list.indexOf('papa') >= 0 && !routeDir().toWork)) list.push('commute');
     if (S.inbox && ((S.inbox.deliveries || []).length || (S.inbox.bills || []).some(function (b) { return !b.paid; }))) list.push('orders');
-    if (S.kids && S.kids.length && h >= 6 && h < 21) list.push('kids');
     if (S.cricket && (S.cricket.live || S.cricket.next)) list.push('cricket');
     if (S.music && S.music.title && S.music.playing) list.push('music');
     if (S.memory) list.push('memories');
@@ -1535,6 +1542,7 @@
     reg('art-idle', C.idleArtMinutes * MIN, function () { return view.idle ? loadIdleArt() : null; });
     reg('photo', 4 * MIN, loadFramePhoto);
     reg('context', 2 * MIN, postContext);
+    reg('releases', 60 * MIN, async function () { S.releases = await Sources.releases(); });
 
     if (DEMO) {
       var d = Sources.demo();
@@ -1572,7 +1580,6 @@
       if (S.gEvents || (S.phone && S.phone.events.length)) S.events = Sources.mergeEvents(S.gEvents || [], S.phone && S.phone.events);
     });
     reg('news', 30 * MIN, async function () { S.news = await Sources.news(); });
-    reg('kids', 10 * MIN, async function () { S.kids = await Sources.kids(); });
     reg('commute', 15 * MIN, async function () {
       var c = C.commute, now = new Date();
       if (isWorkday(now) && now.getHours() >= c.fromHour && now.getHours() < c.toHour) S.commute = await Sources.commute();

@@ -567,6 +567,56 @@ window.Sources = (function () {
     return items;
   }
 
+  // What's coming up in the next 7 days: films in cinemas (English, Hindi), new shows and new
+  // seasons on the big streaming services, and films arriving on Netflix / Prime Video in the UAE.
+  async function releases() {
+    if (!C.tmdbKey) return [];
+    var cached = U.store.get('releases', null);
+    if (cached && cached.day === U.dayKey() && cached.at > Date.now() - 6 * 3600000) return cached.items;
+    var B = 'https://api.themoviedb.org/3/', K = '&api_key=' + C.tmdbKey;
+    var d0 = U.dayKey(), d7 = U.dayKey(new Date(Date.now() + 7 * 86400000));
+    var NETS = { 213: 'Netflix', 1024: 'Prime Video', 2739: 'Disney+', 2552: 'Apple TV+' };
+    function get(path) { return U.json(B + path + K).then(function (d) { return (d && d.results) || []; }).catch(function () { return []; }); }
+    function langOk(x) { return x.original_language === 'en' || x.original_language === 'hi'; }
+    var name = function (x) { return (x.original_language === 'hi' && /^[ -~]+$/.test(x.original_title || x.original_name || '')) ? (x.original_title || x.original_name) : (x.title || x.name); };
+    var out = [];
+    var jobs = [
+      get('discover/movie?region=AE&with_release_type=2|3&release_date.gte=' + d0 + '&release_date.lte=' + d7 + '&with_original_language=en&sort_by=popularity.desc').then(function (r) {
+        r.slice(0, 4).forEach(function (m) { out.push({ title: name(m), date: m.release_date, where: 'In cinemas', lang: m.original_language, pop: m.popularity, kind: 'cinema' }); });
+      }),
+      get('discover/movie?region=IN&with_release_type=2|3&release_date.gte=' + d0 + '&release_date.lte=' + d7 + '&with_original_language=hi&sort_by=popularity.desc').then(function (r) {
+        r.slice(0, 3).forEach(function (m) { out.push({ title: name(m), date: m.release_date, where: 'In cinemas', lang: 'hi', pop: m.popularity + 5, kind: 'cinema' }); });
+      }),
+      get('discover/movie?watch_region=AE&with_watch_providers=8|119&with_release_type=4&release_date.gte=' + d0 + '&release_date.lte=' + d7 + '&sort_by=popularity.desc').then(function (r) {
+        r.filter(langOk).slice(0, 3).forEach(function (m) { out.push({ title: name(m), date: null, where: 'Streaming this week', lang: m.original_language, pop: m.popularity, kind: 'stream' }); });
+      })
+    ];
+    Object.keys(NETS).forEach(function (n) {
+      jobs.push(get('discover/tv?with_networks=' + n + '&first_air_date.gte=' + d0 + '&first_air_date.lte=' + d7 + '&without_genres=10763,10764,10767&sort_by=popularity.desc').then(function (r) {
+        r.filter(langOk).slice(0, 3).forEach(function (t) { out.push({ title: name(t), date: t.first_air_date, where: NETS[n], lang: t.original_language, pop: t.popularity, kind: 'new show' }); });
+      }));
+      jobs.push(get('discover/tv?with_networks=' + n + '&air_date.gte=' + d0 + '&air_date.lte=' + d7 + '&vote_count.gte=300&without_genres=10763,10764,10767&sort_by=popularity.desc').then(function (r) {
+        // keep only shows whose next episode starts a new season
+        return Promise.all(r.filter(langOk).slice(0, 4).map(function (t) {
+          return U.json(B + 'tv/' + t.id + '?' + K.slice(1)).then(function (d) {
+            var e = d && d.next_episode_to_air;
+            if (e && e.episode_number === 1 && e.air_date >= d0 && e.air_date <= d7) out.push({ title: name(t) + ' · Season ' + e.season_number, date: e.air_date, where: NETS[n], lang: t.original_language, pop: t.popularity + 20, kind: 'new season' });
+          }).catch(function () {});
+        }));
+      }));
+    });
+    await Promise.all(jobs);
+    var seen = {};
+    out = out.filter(function (x) { var k = x.title.toLowerCase(); if (seen[k] || x.pop < 2) return false; seen[k] = 1; return true; });
+    out.sort(function (a, b) { return b.pop - a.pop; });
+    // a good mix: at most two from any one kind, then in date order
+    var per = {}, pick = [];
+    out.forEach(function (x) { if (pick.length < 6 && (per[x.kind] = (per[x.kind] || 0) + 1) <= 2) pick.push(x); });
+    pick.sort(function (a, b) { return (a.date || '9') < (b.date || '9') ? -1 : 1; });
+    U.store.set('releases', { day: U.dayKey(), at: Date.now(), items: pick });
+    return pick;
+  }
+
   async function pickFilm() {
     var pool = await filmPool();
     var seen = U.store.get('art_seen', []);
@@ -683,6 +733,6 @@ window.Sources = (function () {
   return {
     weather: weather, airQuality: airQuality, prayers: prayers, fx: fx, commute: commute, commuteDetail: commuteDetail, pushed: pushed, mergeEvents: mergeEvents, whereabouts: whereabouts, inbox: inbox,
     driveMinutes: driveMinutes, calendar: calendar, spotifyNow: spotifyNow, spotifyControl: spotifyControl,
-    cricket: cricket, news: news, kids: kids, flight: flight, pickArt: pickArt, pickFilm: pickFilm, demo: demo
+    cricket: cricket, news: news, kids: kids, flight: flight, pickArt: pickArt, pickFilm: pickFilm, releases: releases, demo: demo
   };
 })();

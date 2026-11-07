@@ -214,33 +214,49 @@
     var h = d.getUTCHours(), mi = d.getUTCMinutes();
     return { time: ((h % 12) || 12) + ':' + U.pad(mi), ap: h < 12 ? 'AM' : 'PM', day: WEEKDAYS[d.getUTCDay()].slice(0, 3) };
   }
+  function miniDial(t) {                 // tiny analogue clock for a city's time ("9:42", "AM")
+    var p = t.time.split(':'), hr = +p[0], h = (hr % 12) + (+p[1]) / 60, m = +p[1];
+    var night = (t.ap === 'PM' && hr >= 7 && hr < 12) || (t.ap === 'AM' && (hr < 6 || hr === 12));
+    var face = night ? '#2A3140' : '#E8EAED', ink = night ? '#E8EAED' : '#1B1F27';
+    return '<svg class="wc-dial" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="' + face + '"/>' +
+      '<line x1="12" y1="12" x2="12" y2="6.5" stroke="' + ink + '" stroke-width="2.2" stroke-linecap="round" transform="rotate(' + (h * 30) + ' 12 12)"/>' +
+      '<line x1="12" y1="12" x2="12" y2="3.5" stroke="' + ink + '" stroke-width="1.4" stroke-linecap="round" transform="rotate(' + (m * 6) + ' 12 12)"/>' +
+      '<circle cx="12" cy="12" r="1.4" fill="#F2B36B"/></svg>';
+  }
   function tileWorld() {
     var now = new Date(), today = WEEKDAYS[now.getDay()].slice(0, 3);
     return '<p class="k">World clock</p>' + CITIES.map(function (c) {
       var t = cityTime(c, now);
-      return '<div class="wc-row"><span class="wc-n">' + esc(c.name) + (t.day !== today ? '<small class="wc-d">' + esc(t.day) + '</small>' : '') +
+      return '<div class="wc-row">' + miniDial(t) + '<span class="wc-n">' + esc(c.name) + (t.day !== today ? '<small class="wc-d">' + esc(t.day) + '</small>' : '') +
         '</span><span class="wc-t">' + esc(t.time) + '<small> ' + t.ap + '</small></span></div>';
     }).join('');
   }
 
+  var CU_ICON = {
+    weekend: '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><circle cx="12" cy="14.5" r="2" class="f"/></svg>',
+    occasion: '<svg viewBox="0 0 24 24"><path d="M12 3c2 3 3 4.5 3 6.5a3 3 0 0 1-6 0C9 7.5 10 6 12 3z" class="f"/><path d="M5 15h14l-2 5H7z"/></svg>',
+    cinema: '<svg viewBox="0 0 24 24"><path d="M4 8h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4z"/><path d="M14 8v10" stroke-dasharray="2 2"/></svg>'
+  };
   function tileDays() {
     // Commute during the morning window; otherwise what's coming up: weekend, the next occasion,
-    // and new films and shows arriving this week.
+    // and a strip of posters for new films and shows arriving this week.
     var c = C.commute, now = new Date(), h = now.getHours();
     if (S.commute && isWorkday(now) && h >= c.fromHour && h < c.toHour) return tileCommute();
     var n = 0;
     while (C.weekend.indexOf((now.getDay() + n) % 7) < 0 && n < 7) n++;
-    function inDays(d) { return d === 0 ? 'Today' : d + (d === 1 ? ' day' : ' days'); }
-    var chips = '<span class="cu-chip">Weekend <b>' + inDays(n) + '</b></span>';
+    function inDays(d) { return d === 0 ? 'Today' : d === 1 ? '1 day' : d + ' days'; }
+    var badges = '<span class="cu-b">' + CU_ICON.weekend + '<span><small>Weekend</small>' + inDays(n) + '</span></span>';
     var cd = nextCountdown();
-    if (cd) chips += '<span class="cu-chip">' + esc(cd.label) + ' <b>' + inDays(cd.days) + '</b></span>';
-    var rel = (S.releases || []).slice(0, 4), today = U.dayKey(now), tmr = U.dayKey(new Date(now.getTime() + 86400000));
-    var rows = rel.map(function (r) {
-      var when = !r.date ? 'This week' : r.date === today ? 'Today' : r.date === tmr ? 'Tomorrow' : r.date < today ? 'Out now' : shortDay(U.parseLocalDate(r.date));
-      return '<div class="cu-row"><span class="cu-when">' + esc(when) + '</span><span class="cu-t">' + esc(r.title) +
-        (r.lang === 'hi' ? '<small class="cu-hi">Hindi</small>' : '') + '</span><span class="cu-where">' + esc(r.where) + '</span></div>';
+    if (cd) badges += '<span class="cu-b">' + CU_ICON.occasion + '<span><small>' + esc(cd.label) + '</small>' + inDays(cd.days) + '</span></span>';
+    var rel = (S.releases || []).slice(0, 5), today = U.dayKey(now), tmr = U.dayKey(new Date(now.getTime() + 86400000));
+    var strip = rel.map(function (r) {
+      var when = !r.date ? 'This week' : r.date === today ? 'Today' : r.date === tmr ? 'Tomorrow' : r.date < today ? 'Out now' : WEEKDAYS[U.parseLocalDate(r.date).getDay()].slice(0, 3);
+      var mark = r.logo ? '<img class="cu-logo" src="' + esc(r.logo) + '" alt="">' : '<span class="cu-logo cu-cin">' + CU_ICON.cinema + '</span>';
+      return '<div class="cu-p"><div class="cu-img"><img src="' + esc(r.poster) + '" alt="">' + mark +
+        (r.season ? '<span class="cu-tag">S' + r.season + '</span>' : r.lang === 'hi' ? '<span class="cu-tag">Hindi</span>' : '') +
+        '</div><p class="cu-w">' + esc(when) + '</p></div>';
     }).join('');
-    return '<p class="k">Coming up</p><div class="cu-chips">' + chips + '</div>' + (rows ? '<div class="cu-list">' + rows + '</div>' : '');
+    return '<div class="cu-head"><p class="k">Coming up</p><div class="cu-bs">' + badges + '</div></div>' + (strip ? '<div class="cu-strip">' + strip + '</div>' : '');
   }
 
   function drawTiles() {
@@ -270,7 +286,7 @@
   function eligibleCards() {
     // Which screens apply right now (sorted by relevance below).
     var now = new Date(), h = now.getHours(), list = ['calendar'];
-    if (S.papa && !(S.papa.km != null && S.papa.km < 0.15)) list.unshift('papa');   // evening: where the family member is, first
+    if (S.papa && !(S.papa.km != null && S.papa.km < 0.15)) list.unshift('papa');   // evening: where Papa is, first
     if (S.phone && S.phone.reminders && S.phone.reminders.length) list.push('reminders');
     if (S.weather && S.weather.hours) list.push('weather');
     if (activeFlight(now)) list.push('flight');
@@ -404,7 +420,7 @@
     return '<div class="ods"><div><p class="subhead" style="margin:0 0 6px">Deliveries</p>' + dl + '</div><div><p class="subhead" style="margin:0 0 6px">Bills</p>' + bl + '</div></div>';
   }
 
-  var TITLES = { weather: 'Weather · ' + C.location.name, calendar: 'Today', music: 'Now playing', cricket: 'Live · Cricket', kids: "Kids' board", news: 'Headlines', flight: 'Arriving flight', commute: 'Commute', reminders: 'Reminders', papa: 'On the way home', orders: 'Deliveries & bills', memories: 'Memories' };
+  var TITLES = { weather: 'Weather · ' + C.location.name, calendar: 'Today', music: 'Now playing', cricket: 'Live · Cricket', kids: "Kids' board", news: 'Headlines', flight: 'Arriving at DXB', commute: 'Commute', reminders: 'Reminders', papa: 'On the way home', orders: 'Deliveries & bills', memories: 'Memories' };
 
   function cardCalendar() {
     if (!C.calendars.length && !DEMO) {
@@ -629,14 +645,14 @@
     'spotify': '#1DB954', 'apple tv': '#A1A1A6', 'shahid': '#2EC4B6', 'osn+': '#E4A11B', 'jiohotstar': '#1F80E0' };
   // The apps row, plus a last "Gallery" tile (Samsung's smart remote has no colour buttons).
   function appTiles() {
-    return C.apps.concat([{ label: 'Gallery', gallery: true, color: '#F2B36B' },
+    return C.apps.concat([{ label: 'Games', games: true, color: '#8E7CF0' }, { label: 'Gallery', gallery: true, color: '#F2B36B' },
       { label: G.music ? '♪ On' : '♪ Off', music: true, color: G.music ? '#6FD39A' : '#6B7280' }]);
   }
   function drawApps() {
     // Calm, identical tiles: name + a small brand-colour dot (no mismatched logo images).
     $('apps').innerHTML = appTiles().map(function (a, i) {
       var dot = a.color || APP_DOT[String(a.label).toLowerCase()] || '#F2B36B';
-      return '<div class="app app-c' + (a.gallery || a.wclock || a.music ? ' app-mini' : '') + '" data-i="' + i + '"><b class="app-dot" style="background:' + esc(dot) + '"></b><span>' + esc(a.label) + '</span></div>';
+      return '<div class="app app-c' + (a.gallery || a.wclock || a.music || a.games ? ' app-mini' : '') + '" data-i="' + i + '"><b class="app-dot" style="background:' + esc(dot) + '"></b><span>' + esc(a.label) + '</span></div>';
     }).join('');
     drawFocus();
   }
@@ -659,6 +675,7 @@
     if (a && a.gallery) { view.manualGallery = true; enterIdle(); return; }
     if (a && a.wclock) { enterClock(); return; }
     if (a && a.music) { toggleCalm(); return; }
+    if (a && a.games) { if (typeof Games !== 'undefined') Games.open(function () { view.lastInput = Date.now(); drawFocus(); }); return; }
     if (!a.appId) { toast('No app ID set for ' + a.label + ' — press the BLUE button to find it.'); return; }
     if (!ON_TV) { toast('Would open ' + a.label + ' (' + a.appId + ') on the TV'); return; }
     try {
@@ -1420,6 +1437,7 @@
   function onKey(e) {
     var code = e.keyCode;
     view.lastInput = Date.now();
+    if (typeof Games !== 'undefined' && Games.active) { e.preventDefault(); Games.key(code); return; }
     if (G.active) { e.preventDefault(); greetKey(code); return; }
     if (A.open) { e.preventDefault(); askKey(code); return; }
     if (!$('askcard').classList.contains('hidden') && (code === KEY.BACK || code === KEY.ESC || code === KEY.ENTER)) { e.preventDefault(); closeAskCard(); stopSpeech(); return; }
@@ -1639,7 +1657,7 @@
   function tick() {
     drawClock();
     // No remote press for idleMinutes → gallery, any time of day (not while another app is in front or Sam's screen is open).
-    if (!view.idle && !view.wclock && !G.active && !A.open && !document.hidden && Date.now() - view.lastInput > C.idleMinutes * 60000) enterIdle();
+    if (!view.idle && !view.wclock && !(typeof Games !== 'undefined' && Games.active) && !G.active && !A.open && !document.hidden && Date.now() - view.lastInput > C.idleMinutes * 60000) enterIdle();
   }
 
   function keepScreenOn() {
@@ -1717,6 +1735,7 @@
     registerKeys();
     keepScreenOn();
     document.addEventListener('keydown', onKey);
+    document.addEventListener('keyup', function (e) { if (typeof Games !== 'undefined' && Games.active) Games.keyUp(e.keyCode); });
     drawApps();
     startLoaders();
     drawAll();

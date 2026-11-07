@@ -499,24 +499,35 @@ body { text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55); }
 #iWords.tclk { width: 520px; height: 300px; margin-bottom: 30px; background: none; box-shadow: none; padding: 0; }
 #iWords.tclk svg { display: block; width: 520px; height: 300px; filter: drop-shadow(0 14px 30px rgba(0,0,0,.5)); }
 
-/* ---------- Side tiles: wide "Coming up" on top; rates and a compact world clock below ---------- */
+/* ---------- Side tiles: one type scale (label 15 · secondary 18 · value 26) ---------- */
 .tiles { grid-template-rows: 1fr 1fr; }
 #tileA { grid-row: 1; grid-column: 1 / span 2; }
 #tileB { grid-row: 2; grid-column: 1; }
 #tileD { grid-row: 2; grid-column: 2; padding: 14px 18px; }
-#tileD .wc-row { padding: 0; border-bottom: 0; line-height: 1.25; }
-#tileD.tile { gap: 2px; }
-#tileD .k { margin-bottom: 2px; }
-#tileD .wc-n { font-size: 18px; }
-#tileD .wc-t { font-size: 21px; }
+.tile .k { font-size: 15px; letter-spacing: 2px; }
+#tileB .fx-k { font-size: 18px; }
+#tileB .fx-v { font-size: 26px; }
+/* World clock: tiny dial + city + time */
+#tileD .wc-row { display: flex; align-items: center; padding: 0; border-bottom: 0; height: 30px; }
+.wc-dial { flex: 0 0 22px; width: 22px; height: 22px; margin-right: 10px; }
+#tileD .wc-n { flex: 1 1 auto; font-size: 18px; }
+#tileD .wc-t { font-size: 22px; }
 #tileD .wc-t small { font-size: 13px; }
-#tileD .wc-d { font-size: 12px; margin-left: 5px; }
-.cu-chips { display: flex; flex-wrap: wrap; margin: 0 0 2px; }
-.cu-chip { font-size: 18px; color: var(--muted); margin-right: 22px; white-space: nowrap; }
-.cu-chip b { color: #fff; font-size: 22px; margin-left: 4px; }
-.cu-list { margin-top: 2px; }
-.cu-row { display: flex; align-items: baseline; padding: 2px 0; border-top: 1px solid var(--line); }
-.cu-when { flex: 0 0 104px; font-size: 16px; font-weight: 700; color: var(--muted); white-space: nowrap; }
-.cu-t { flex: 1 1 auto; min-width: 0; font-size: 19px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cu-hi { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #F2B36B; margin-left: 8px; }
-.cu-where { flex: 0 0 auto; font-size: 15px; color: var(--muted); margin-left: 12px; white-space: nowrap; }
+#tileD .wc-d { font-size: 13px; margin-left: 6px; color: var(--muted); }
+/* Coming up: countdown badges + poster strip */
+.cu-head { display: flex; align-items: center; justify-content: space-between; }
+.cu-bs { display: flex; }
+.cu-b { display: flex; align-items: center; margin-left: 22px; font-size: 18px; font-weight: 700; white-space: nowrap; }
+.cu-b svg { width: 26px; height: 26px; margin-right: 8px; fill: none; stroke: #C9CDD3; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.cu-b svg .f { fill: #F2B36B; stroke: none; }
+.cu-b small { display: block; font-size: 13px; font-weight: 600; color: var(--muted); line-height: 1.1; }
+.cu-strip { display: flex; margin-top: 10px; }
+.cu-p { flex: 0 0 82px; margin-right: 16px; }
+.cu-p:last-child { margin-right: 0; }
+.cu-img { position: relative; width: 82px; height: 123px; border-radius: 8px; overflow: hidden; background: #1d2330; box-shadow: 0 6px 16px rgba(0,0,0,.45); }
+.cu-img > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cu-logo { position: absolute; right: 4px; bottom: 4px; width: 26px; height: 26px; border-radius: 6px; box-shadow: 0 0 0 1.5px rgba(0,0,0,.5); }
+.cu-cin { display: flex; align-items: center; justify-content: center; background: #F2B36B; }
+.cu-cin svg { width: 18px; height: 18px; fill: none; stroke: #1B1F27; stroke-width: 1.8; }
+.cu-tag { position: absolute; left: 4px; top: 4px; padding: 1px 5px; border-radius: 4px; background: rgba(0,0,0,.75); font-size: 11px; font-weight: 700; letter-spacing: .04em; color: #F2B36B; text-shadow: none; }
+.cu-w { margin-top: 6px; font-size: 15px; font-weight: 700; color: #D6D9DE; text-align: center; white-space: nowrap; }

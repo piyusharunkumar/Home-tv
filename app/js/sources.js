@@ -289,7 +289,7 @@ window.Sources = (function () {
     return out;
   }
 
-  // ---------------- Where is Piyush (Find My → laptop → here) ----------------
+  // ---------------- Where is Papa (Find My → laptop → here) ----------------
   function metres(a, b, c, d) {
     var R = 6371000, toR = Math.PI / 180, x = (d - b) * toR * Math.cos((a + c) / 2 * toR), y = (c - a) * toR;
     return Math.sqrt(x * x + y * y) * R;
@@ -571,49 +571,57 @@ window.Sources = (function () {
   // seasons on the big streaming services, and films arriving on Netflix / Prime Video in the UAE.
   async function releases() {
     if (!C.tmdbKey) return [];
-    var cached = U.store.get('releases', null);
+    var cached = U.store.get('releases2', null);
     if (cached && cached.day === U.dayKey() && cached.at > Date.now() - 6 * 3600000) return cached.items;
     var B = 'https://api.themoviedb.org/3/', K = '&api_key=' + C.tmdbKey;
     var d0 = U.dayKey(), d7 = U.dayKey(new Date(Date.now() + 7 * 86400000));
     var NETS = { 213: 'Netflix', 1024: 'Prime Video', 2739: 'Disney+', 2552: 'Apple TV+' };
+    var PROV = { 213: 8, 1024: 119, 2739: 337, 2552: 350 }, LOGO = {};
+    try {   // the services' own logos, from TMDB's provider list
+      var pl = await Promise.all(['movie', 'tv'].map(function (k) { return U.json(B + 'watch/providers/' + k + '?watch_region=AE' + K).catch(function () { return {}; }); }));
+      pl.forEach(function (d) { (d.results || []).forEach(function (r) { if (r.logo_path) LOGO[r.provider_id] = 'https://image.tmdb.org/t/p/w92' + r.logo_path; }); });
+    } catch (e) { /* text labels instead */ }
+    function poster(x) { return x.poster_path ? 'https://image.tmdb.org/t/p/w154' + x.poster_path : ''; }
     function get(path) { return U.json(B + path + K).then(function (d) { return (d && d.results) || []; }).catch(function () { return []; }); }
     function langOk(x) { return x.original_language === 'en' || x.original_language === 'hi'; }
     var name = function (x) { return (x.original_language === 'hi' && /^[ -~]+$/.test(x.original_title || x.original_name || '')) ? (x.original_title || x.original_name) : (x.title || x.name); };
     var out = [];
     var jobs = [
       get('discover/movie?region=AE&with_release_type=2|3&release_date.gte=' + d0 + '&release_date.lte=' + d7 + '&with_original_language=en&sort_by=popularity.desc').then(function (r) {
-        r.slice(0, 4).forEach(function (m) { out.push({ title: name(m), date: m.release_date, where: 'In cinemas', lang: m.original_language, pop: m.popularity, kind: 'cinema' }); });
+        r.slice(0, 4).forEach(function (m) { out.push({ title: name(m), date: m.release_date, where: 'In cinemas', lang: m.original_language, pop: m.popularity, kind: 'cinema', poster: poster(m) }); });
       }),
       get('discover/movie?region=IN&with_release_type=2|3&release_date.gte=' + d0 + '&release_date.lte=' + d7 + '&with_original_language=hi&sort_by=popularity.desc').then(function (r) {
-        r.slice(0, 3).forEach(function (m) { out.push({ title: name(m), date: m.release_date, where: 'In cinemas', lang: 'hi', pop: m.popularity + 5, kind: 'cinema' }); });
+        r.slice(0, 3).forEach(function (m) { out.push({ title: name(m), date: m.release_date, where: 'In cinemas', lang: 'hi', pop: m.popularity + 5, kind: 'cinema', poster: poster(m) }); });
       }),
-      get('discover/movie?watch_region=AE&with_watch_providers=8|119&with_release_type=4&release_date.gte=' + d0 + '&release_date.lte=' + d7 + '&sort_by=popularity.desc').then(function (r) {
-        r.filter(langOk).slice(0, 3).forEach(function (m) { out.push({ title: name(m), date: null, where: 'Streaming this week', lang: m.original_language, pop: m.popularity, kind: 'stream' }); });
-      })
+      Promise.all([[8, 'Netflix'], [119, 'Prime Video']].map(function (pv) {
+        return get('discover/movie?watch_region=AE&with_watch_providers=' + pv[0] + '&with_release_type=4&release_date.gte=' + d0 + '&release_date.lte=' + d7 + '&sort_by=popularity.desc').then(function (r) {
+          r.filter(langOk).slice(0, 2).forEach(function (m) { out.push({ title: name(m), date: null, where: pv[1], logo: LOGO[pv[0]] || '', lang: m.original_language, pop: m.popularity, kind: 'stream', poster: poster(m) }); });
+        });
+      }))
     ];
     Object.keys(NETS).forEach(function (n) {
       jobs.push(get('discover/tv?with_networks=' + n + '&first_air_date.gte=' + d0 + '&first_air_date.lte=' + d7 + '&without_genres=10763,10764,10767&sort_by=popularity.desc').then(function (r) {
-        r.filter(langOk).slice(0, 3).forEach(function (t) { out.push({ title: name(t), date: t.first_air_date, where: NETS[n], lang: t.original_language, pop: t.popularity, kind: 'new show' }); });
+        r.filter(langOk).slice(0, 3).forEach(function (t) { out.push({ title: name(t), date: t.first_air_date, where: NETS[n], logo: LOGO[PROV[n]] || '', lang: t.original_language, pop: t.popularity, kind: 'new show', poster: poster(t) }); });
       }));
       jobs.push(get('discover/tv?with_networks=' + n + '&air_date.gte=' + d0 + '&air_date.lte=' + d7 + '&vote_count.gte=300&without_genres=10763,10764,10767&sort_by=popularity.desc').then(function (r) {
         // keep only shows whose next episode starts a new season
         return Promise.all(r.filter(langOk).slice(0, 4).map(function (t) {
           return U.json(B + 'tv/' + t.id + '?' + K.slice(1)).then(function (d) {
             var e = d && d.next_episode_to_air;
-            if (e && e.episode_number === 1 && e.air_date >= d0 && e.air_date <= d7) out.push({ title: name(t) + ' · Season ' + e.season_number, date: e.air_date, where: NETS[n], lang: t.original_language, pop: t.popularity + 20, kind: 'new season' });
+            if (e && e.episode_number === 1 && e.air_date >= d0 && e.air_date <= d7) out.push({ title: name(t), season: e.season_number, date: e.air_date, where: NETS[n], logo: LOGO[PROV[n]] || '', lang: t.original_language, pop: t.popularity + 20, kind: 'new season', poster: (d.seasons || []).filter(function (z) { return z.season_number === e.season_number && z.poster_path; }).map(poster)[0] || poster(t) });
           }).catch(function () {});
         }));
       }));
     });
     await Promise.all(jobs);
     var seen = {};
-    out = out.filter(function (x) { var k = x.title.toLowerCase(); if (seen[k] || x.pop < 2) return false; seen[k] = 1; return true; });
+    out = out.filter(function (x) { var k = x.title.toLowerCase(); if (seen[k] || x.pop < 2 || !x.poster) return false; seen[k] = 1; return true; });
     out.sort(function (a, b) { return b.pop - a.pop; });
     // a good mix: at most two from any one kind, then in date order
     var per = {}, pick = [];
     out.forEach(function (x) { if (pick.length < 6 && (per[x.kind] = (per[x.kind] || 0) + 1) <= 2) pick.push(x); });
     pick.sort(function (a, b) { return (a.date || '9') < (b.date || '9') ? -1 : 1; });
-    U.store.set('releases', { day: U.dayKey(), at: Date.now(), items: pick });
+    U.store.set('releases2', { day: U.dayKey(), at: Date.now(), items: pick });
     return pick;
   }
 
@@ -704,7 +712,7 @@ window.Sources = (function () {
       ],
       music: {
         playing: true, title: 'Sample Song', artist: 'Sample Artist', album: 'Sample Album', image: '',
-        progress: 84000, duration: 211000, device: "Piyush's iPhone", fetchedAt: Date.now()
+        progress: 84000, duration: 211000, device: "Papa's iPhone", fetchedAt: Date.now()
       },
       cricket: {
         live: {

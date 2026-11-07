@@ -732,16 +732,8 @@
       var slot = view.gSlot = (view.gSlot || 0) + 1;
       if (slot % 5 === 0 && C.tmdbKey) { try { art = await Sources.pickFilm(); } catch (e) { console.warn('[poster]', e.message); } }
       if (!art) art = await Sources.pickArt('any', null, true);
-    } else if (C.photoFrame !== false) {
-      // Night gallery: every few pictures, a family photo instead of a painting.
-      loadIdleArt.n = (loadIdleArt.n || 0) + 1;
-      if (loadIdleArt.n % (C.photoEvery || 4) === 0) {
-        try {
-          var p = await nextPhoto();
-          if (p) art = { src: p.src, ratio: p.ratio, title: p.kicker, artist: p.caption, date: '', medium: '', note: '', museum: 'From our family photos', theme: 'Family', family: true };
-        } catch (e) { console.warn('[gallery photo]', e.message); }
-      }
     }
+    // Family photos stay on the home screen's Memories card only: the gallery is for guests too.
     if (!art) art = await Sources.pickArt('any');
     if (art) {
       var frame = $('iFrame');
@@ -1506,7 +1498,7 @@
     });
   }
   async function loadFramePhoto() {
-    if (view.idle || document.hidden || C.photoFrame === false) return;
+    if (document.hidden || C.photoFrame === false) return;           // keep one ready even while the gallery is up
     var p = await nextPhoto();
     if (!p) return;
     S.memory = p;

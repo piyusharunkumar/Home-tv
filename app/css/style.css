@@ -496,8 +496,8 @@ body { text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55); }
 
 /* ---------- Gallery clock drawn in the spirit of the picture on display (js/themeclock.js) ---------- */
 #iWords { transition: opacity .45s ease; }
-#iWords.tclk { width: 520px; height: 300px; margin-bottom: 30px; background: none; box-shadow: none; padding: 0; }
-#iWords.tclk svg { display: block; width: 520px; height: 300px; filter: drop-shadow(0 14px 30px rgba(0,0,0,.5)); }
+#iWords.tclk { width: 400px; height: 230px; margin-bottom: 8px; background: none; box-shadow: none; padding: 0; }
+#iWords.tclk svg { display: block; width: 400px; height: 230px; filter: drop-shadow(0 14px 30px rgba(0,0,0,.5)); }
 
 /* ---------- Side tiles: one type scale (label 15 · secondary 18 · value 26) ---------- */
 .tiles { grid-template-rows: 1fr 1fr; }
@@ -531,3 +531,18 @@ body { text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55); }
 .cu-ic { width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; object-fit: cover; }
 .cu-cin { display: flex; align-items: center; justify-content: center; background: #F2B36B; }
 .cu-cin svg { width: 13px; height: 13px; fill: none; stroke: #1B1F27; stroke-width: 2; }
+
+/* Gallery label: keep clock + text inside the 780px column, never under the hint or off-screen */
+.label { max-height: 780px; overflow: hidden; justify-content: center; }
+.idle.has-words .idle-hint { display: none; }
+.label-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+.label-title.t-m { font-size: 44px; }
+.label-title.t-s { font-size: 36px; -webkit-line-clamp: 5; }
+.label-meta { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.label-note { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+/* Coming up: three airier rows */
+.cu-r { height: 46px; }
+.cu-d { flex: 0 0 110px; }
+.label > * { flex-shrink: 0; }
+.label-title.t-s { -webkit-line-clamp: 4; }
+.label-note { -webkit-line-clamp: 3; }

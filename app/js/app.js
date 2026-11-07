@@ -248,10 +248,10 @@
     var badges = '<span class="cu-b">' + CU_ICON.weekend + '<span><small>Weekend</small>' + inDays(n) + '</span></span>';
     var cd = nextCountdown();
     if (cd) badges += '<span class="cu-b">' + CU_ICON.occasion + '<span><small>' + esc(cd.label) + '</small>' + inDays(cd.days) + '</span></span>';
-    var rel = (S.releases || []).slice(0, 4), today = U.dayKey(now), tmr = U.dayKey(new Date(now.getTime() + 86400000));
+    var rel = (S.releases || []).slice(0, 3), today = U.dayKey(now), tmr = U.dayKey(new Date(now.getTime() + 86400000));
     var rows = rel.map(function (r) {
       var d = r.date ? U.parseLocalDate(r.date) : null;
-      var when = !d ? 'This week' : r.date === today ? 'Today' : r.date === tmr ? 'Tomorrow' : r.date < today ? 'Out now' : WEEKDAYS[d.getDay()].slice(0, 3) + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()].slice(0, 3);
+      var when = !d ? 'This week' : r.date === today ? 'Today' : r.date === tmr ? 'Tomorrow' : r.date < today ? 'Out now' : WEEKDAYS[d.getDay()].slice(0, 3) + ' ' + d.getDate();
       var thumb = r.poster ? '<img class="cu-th" src="' + esc(r.poster) + '" alt="">' : '<span class="cu-th"></span>';
       var mark = r.logo ? '<img class="cu-ic" src="' + esc(r.logo) + '" alt="">' : '<span class="cu-ic cu-cin">' + CU_ICON.cinema + '</span>';
       var tag = r.season ? ' · Season ' + r.season : '';
@@ -728,7 +728,10 @@
     $('iImg').src = a.src;
     $('iImg').alt = a.title + ' by ' + a.artist;
     $('iTheme').textContent = 'Gallery · ' + a.theme;
-    $('iTitle').textContent = a.title;
+    // Long museum titles shrink a step so the clock, title and note always fit the column.
+    var tl = (a.title || '').length, ti = $('iTitle');
+    ti.textContent = a.title;
+    ti.className = 'label-title' + (tl > 90 ? ' t-s' : tl > 50 ? ' t-m' : '');
     $('iArtist').textContent = a.artist;
     $('iMeta').textContent = [a.date, a.medium].filter(Boolean).join(' · ');
     $('iNote').textContent = a.note || '';

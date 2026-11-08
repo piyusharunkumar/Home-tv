@@ -546,3 +546,28 @@ body { text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55); }
 .label > * { flex-shrink: 0; }
 .label-title.t-s { -webkit-line-clamp: 4; }
 .label-note { -webkit-line-clamp: 3; }
+
+/* Bottom row: exchange rates get more room (with week sparklines), world clock is tighter */
+.tiles { grid-template-columns: 1.4fr 1fr; }
+#tileB .fx-row { display: flex; align-items: center; justify-content: flex-start; }
+#tileB .fx-k { flex: 0 0 88px; }
+.fx-sp { flex: 1 1 auto; min-width: 60px; height: 24px; margin: 0 14px; }
+svg.fx-sp circle { fill: #C9CDD3; }
+svg.fx-sp polyline { fill: none; stroke: rgba(201,205,211,.55); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+svg.fx-sp.up circle { fill: var(--good); } svg.fx-sp.down circle { fill: var(--bad); }
+#tileB .fx-v { flex: 0 0 auto; text-align: right; min-width: 150px; }
+#tileD .wc-n { flex: 0 1 auto; margin-right: 12px; }
+#tileD .wc-t { margin-left: auto; }
+.fx-sp { flex: 1 1 0; min-width: 0; margin: 0 12px; }
+#tileB .fx-k { flex: 0 0 76px; }
+#tileB .fx-v { min-width: 0; }
+#tileB .fx-v { flex: 0 0 150px; }
+.fx-sp { flex: 0 0 110px; width: 110px; height: 26px; margin: 0 0 0 4px; }
+#tileB .fx-v { flex: 1 1 auto; }
+.tiles { grid-template-columns: 1.5fr 1fr; }
+.fx-sp { flex: 0 0 84px; width: 84px; margin: 0 6px 0 0; }
+#tileB .fx-k { flex: 0 0 auto; width: 80px; }
+#tileB .fx-k small { margin-left: 3px; }
+.tiles { grid-template-columns: 1.42fr 1fr; }
+#tileD .wc-n { margin-right: 8px; }
+.wc-dial { margin-right: 8px; }

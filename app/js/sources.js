@@ -115,12 +115,17 @@ window.Sources = (function () {
     // Currencies: compare with the previous business day from the ECB series (Frankfurter), so the arrows
     // work from the first day and survive app reinstalls. The base is converted through USD (fine for pegged AED/SAR).
     try {
-      var from = U.dayKey(new Date(Date.now() - 10 * 86400000));
+      var from = U.dayKey(new Date(Date.now() - 9 * 86400000));
       var ts = await U.json('https://api.frankfurter.dev/v1/' + from + '..?from=USD&to=' + quote);
       var keys = Object.keys(ts.rates || {}).sort(), last = keys[keys.length - 1];
       var prevDay = keys.filter(function (k) { return k < today; }).pop();
       if (last === today && keys.length > 1) prevDay = keys[keys.length - 2];
       var pu = prevDay && ts.rates[prevDay][quote];
+      // Last week's line for the tiny charts: daily ECB closes, ending with today's live rate.
+      var su = keys.filter(function (k) { return k < today; }).map(function (k) { return ts.rates[k][quote]; });
+      if (usd != null) su.push(usd);
+      out.series = { usd: su.slice(-7) };
+      if (d.rates.USD) out.series.aed = out.series.usd.map(function (v) { return v * d.rates.USD; });
       if (pu && usd != null) {
         out.usdChange = usd - pu;
         if (d.rates.USD) out.change = aed - pu * d.rates.USD;
@@ -128,6 +133,17 @@ window.Sources = (function () {
     } catch (e) { console.warn('[fx history]', e.message); }
     // Gold: today's move from the market's own daily change (COMEX gold futures), via the laptop relay.
     if (dubai) out.goldChange = dubai.change;            // change from the previous day's Dubai rate
+    // Gold's week: the Dubai rate history once it covers 5+ days, otherwise COMEX daily closes scaled to today's rate.
+    out.series = out.series || {};
+    if (dubai && dubai.hist && dubai.hist.length >= 5) out.series.gold = dubai.hist.slice(-7);
+    else if (gold != null) {
+      try {
+        var yh = await U.json('https://query1.finance.yahoo.com/v8/finance/chart/GC=F?range=1mo&interval=1d', null, true);
+        var cl = (((yh.chart.result[0].indicators || {}).quote || [])[0] || {}).close || [];
+        cl = cl.filter(function (v) { return v != null; }).slice(-7);
+        if (cl.length > 2) { var k = gold / cl[cl.length - 1]; out.series.gold = cl.map(function (v) { return v * k; }); }
+      } catch (e) { console.warn('[gold week]', e.message); }
+    }
     else if (gold != null) {
       try {
         var y = await U.json('https://query1.finance.yahoo.com/v8/finance/chart/GC=F?range=5d&interval=1d', null, true);
@@ -702,7 +718,7 @@ window.Sources = (function () {
         { name: 'Fajr', time: '05:07' }, { name: 'Dhuhr', time: '12:01' }, { name: 'Asr', time: '15:20' },
         { name: 'Maghrib', time: '17:46' }, { name: 'Isha', time: '19:00' }
       ],
-      fx: { rate: 22.9, usd: 84.1, gold: 439.5, change: 0.1, usdChange: -0.2, goldChange: 3.2 },
+      fx: { rate: 25.63, usd: 94.11, gold: 440.7, change: 0.1, usdChange: 0.2, goldChange: -3.2, series: { aed: [25.41, 25.47, 25.52, 25.5, 25.58, 25.6, 25.63], usd: [93.3, 93.55, 93.72, 93.65, 93.95, 94.02, 94.11], gold: [452, 449.5, 451, 454.3, 446, 443.9, 440.7] } },
       commute: { minutes: 24 },
       events: [
         { title: 'School drop-off', start: at(7, 30), end: at(8, 0) },

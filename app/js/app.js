@@ -150,12 +150,22 @@
       if (c == null || Math.abs(c) < tiny) return '<i class="fx-a flat">•</i>';
       return '<i class="fx-a ' + (c > 0 ? 'up' : 'down') + '">' + (c > 0 ? '▲' : '▼') + '</i>';
     }
-    function row(k, v, c, tiny) { return '<div class="fx-row"><span class="fx-k">' + k + '</span><span class="fx-v">' + v + arrow(c, tiny) + '</span></div>'; }
+    // A tiny, quiet line of the last week; the end dot marks today.
+    function spark(a) {
+      if (!a || a.length < 3) return '<span class="fx-sp"></span>';
+      var w = 96, h = 24, lo = Math.min.apply(null, a), hi = Math.max.apply(null, a), r = hi - lo || 1;
+      var pts = a.map(function (v, i) { return [Math.round(i / (a.length - 1) * (w - 4) + 2), Math.round(h - 3 - (v - lo) / r * (h - 6))]; });
+      var dir = a[a.length - 1] > a[0] ? 'up' : a[a.length - 1] < a[0] ? 'down' : 'flat', e = pts[pts.length - 1];
+      return '<svg class="fx-sp ' + dir + '" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none"><polyline points="' + pts.map(function (p) { return p.join(','); }).join(' ') +
+        '"/><circle cx="' + e[0] + '" cy="' + e[1] + '" r="2.6"/></svg>';
+    }
+    var SER = f.series || {};
+    function row(k, v, c, tiny, ser) { return '<div class="fx-row"><span class="fx-k">' + k + '</span>' + spark(ser) + '<span class="fx-v">' + v + arrow(c, tiny) + '</span></div>'; }
     var X = C.fx || {}, base = X.base || 'AED', quote = X.quote || 'INR';
     var SYM = { INR: '₹', USD: '$', EUR: '€', GBP: '£', PKR: 'Rs ', AED: 'AED ', SAR: 'SAR ', PHP: '₱' }, q = SYM[quote] || quote + ' ';
-    var out = '<p class="k">Exchange rates</p>' + row('1 ' + base, q + f.rate.toFixed(2), f.change, 0.005);
-    if (base !== 'USD' && quote !== 'USD') out += row('1 USD', f.usd ? q + f.usd.toFixed(2) : '—', f.usdChange, 0.005);
-    if (X.gold !== false) out += row('Gold<small>22K</small>', f.gold ? (f.gold % 1 ? f.gold.toFixed(1) : f.gold.toFixed(0)) + '<small> ' + base + '/g</small>' : '—', f.goldChange, 0.5);
+    var out = '<p class="k">Exchange rates</p>' + row('1 ' + base, q + f.rate.toFixed(2), f.change, 0.005, SER.aed);
+    if (base !== 'USD' && quote !== 'USD') out += row('1 USD', f.usd ? q + f.usd.toFixed(2) : '—', f.usdChange, 0.005, SER.usd);
+    if (X.gold !== false) out += row('Gold<small>22K</small>', f.gold ? (f.gold % 1 ? f.gold.toFixed(1) : f.gold.toFixed(0)) + '<small>/g</small>' : '—', f.goldChange, 0.5, SER.gold);
     return out;
   }
 

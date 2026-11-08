@@ -116,7 +116,8 @@ def dubai_gold():
         pass
     prev = [hist[k] for k in sorted(hist) if k < today]
     data = {"k22": rates["22"], "k24": rates.get("24"), "k21": rates.get("21"),
-            "change": round(rates["22"] - prev[-1], 2) if prev else None, "at": int(time.time())}
+            "change": round(rates["22"] - prev[-1], 2) if prev else None, "at": int(time.time()),
+            "hist": [hist[k] for k in sorted(hist)][-7:]}
     GOLD.update(t=time.time(), data=data)
     return data
 
